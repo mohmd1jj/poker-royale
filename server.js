@@ -218,6 +218,11 @@ function setCurrentTurn(room) {
 }
 
 function nextTurn(room) {
+  if (room.players.length < 2) {
+    resetRoomToWaiting(room);
+    return;
+  }
+
   room.turnIndex = (room.turnIndex + 1) % room.players.length;
   setCurrentTurn(room);
 }
@@ -250,6 +255,266 @@ function advancePhase(room) {
   setCurrentTurn(room);
 }
 
+/**
+ * Texas Hold'em Hand Evaluator
+ * این بخش برنده واقعی را تشخیص می‌دهد.
+ */
+
+const HAND_RANKS = {
+  HIGH_CARD: 1,
+  ONE_PAIR: 2,
+  TWO_PAIR: 3,
+  THREE_OF_A_KIND: 4,
+  STRAIGHT: 5,
+  FLUSH: 6,
+  FULL_HOUSE: 7,
+  FOUR_OF_A_KIND: 8,
+  STRAIGHT_FLUSH: 9,
+  ROYAL_FLUSH: 10
+};
+
+const RANK_VALUES = {
+  "2": 2,
+  "3": 3,
+  "4": 4,
+  "5": 5,
+  "6": 6,
+  "7": 7,
+  "8": 8,
+  "9": 9,
+  "10": 10,
+  "J": 11,
+  "Q": 12,
+  "K": 13,
+  "A": 14
+};
+
+function parseCard(card) {
+  const suit = card.slice(-1);
+  const rank = card.slice(0, -1);
+
+  return {
+    card,
+    rank,
+    suit,
+    value: RANK_VALUES[rank]
+  };
+}
+
+function getCounts(values) {
+  const counts = {};
+
+  values.forEach((value) => {
+    counts[value] = (counts[value] || 0) + 1;
+  });
+
+  return counts;
+}
+
+function getStraightHigh(values) {
+  const unique = [...new Set(values)].sort((a, b) => b - a);
+
+  if (unique.includes(14)) {
+    unique.push(1);
+  }
+
+  for (let i = 0; i <= unique.length - 5; i++) {
+    const slice = unique.slice(i, i + 5);
+
+    if (
+      slice[0] - 1 === slice[1] &&
+      slice[1] - 1 === slice[2] &&
+      slice[2] - 1 === slice[3] &&
+      slice[3] - 1 === slice[4]
+    ) {
+      return slice[0];
+    }
+  }
+
+  return null;
+}
+
+function evaluateSevenCards(cards) {
+  const parsed = cards.map(parseCard);
+  const values = parsed.map((card) => card.value).sort((a, b) => b - a);
+  const counts = getCounts(values);
+
+  const groups = Object.entries(counts)
+    .map(([value, count]) => ({
+      value: Number(value),
+      count
+    }))
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.value - a.value;
+    });
+
+  const suits = {};
+
+  parsed.forEach((card) => {
+    if (!suits[card.suit]) suits[card.suit] = [];
+    suits[card.suit].push(card.value);
+  });
+
+  let flushValues = null;
+
+  Object.values(suits).forEach((suitValues) => {
+    if (suitValues.length >= 5) {
+      flushValues = suitValues.sort((a, b) => b - a);
+    }
+  });
+
+  if (flushValues) {
+    const straightFlushHigh = getStraightHigh(flushValues);
+
+    if (straightFlushHigh === 14) {
+      return {
+        rank: HAND_RANKS.ROYAL_FLUSH,
+        name: "Royal Flush",
+        values: [14]
+      };
+    }
+
+    if (straightFlushHigh) {
+      return {
+        rank: HAND_RANKS.STRAIGHT_FLUSH,
+        name: "Straight Flush",
+        values: [straightFlushHigh]
+      };
+    }
+  }
+
+  const four = groups.find((group) => group.count === 4);
+
+  if (four) {
+    const kicker = values.find((value) => value !== four.value);
+
+    return {
+      rank: HAND_RANKS.FOUR_OF_A_KIND,
+      name: "Four of a Kind",
+      values: [four.value, kicker]
+    };
+  }
+
+  const threeGroups = groups.filter((group) => group.count === 3);
+  const pairGroups = groups.filter((group) => group.count === 2);
+
+  if (threeGroups.length >= 1 && (pairGroups.length >= 1 || threeGroups.length >= 2)) {
+    const three = threeGroups[0];
+    const pair = pairGroups[0] || threeGroups[1];
+
+    return {
+      rank: HAND_RANKS.FULL_HOUSE,
+      name: "Full House",
+      values: [three.value, pair.value]
+    };
+  }
+
+  if (flushValues) {
+    return {
+      rank: HAND_RANKS.FLUSH,
+      name: "Flush",
+      values: flushValues.slice(0, 5)
+    };
+  }
+
+  const straightHigh = getStraightHigh(values);
+
+  if (straightHigh) {
+    return {
+      rank: HAND_RANKS.STRAIGHT,
+      name: "Straight",
+      values: [straightHigh]
+    };
+  }
+
+  if (threeGroups.length >= 1) {
+    const three = threeGroups[0];
+    const kickers = values.filter((value) => value !== three.value).slice(0, 2);
+
+    return {
+      rank: HAND_RANKS.THREE_OF_A_KIND,
+      name: "Three of a Kind",
+      values: [three.value, ...kickers]
+    };
+  }
+
+  if (pairGroups.length >= 2) {
+    const firstPair = pairGroups[0];
+    const secondPair = pairGroups[1];
+    const kicker = values.find((value) => value !== firstPair.value && value !== secondPair.value);
+
+    return {
+      rank: HAND_RANKS.TWO_PAIR,
+      name: "Two Pair",
+      values: [firstPair.value, secondPair.value, kicker]
+    };
+  }
+
+  if (pairGroups.length === 1) {
+    const pair = pairGroups[0];
+    const kickers = values.filter((value) => value !== pair.value).slice(0, 3);
+
+    return {
+      rank: HAND_RANKS.ONE_PAIR,
+      name: "One Pair",
+      values: [pair.value, ...kickers]
+    };
+  }
+
+  return {
+    rank: HAND_RANKS.HIGH_CARD,
+    name: "High Card",
+    values: values.slice(0, 5)
+  };
+}
+
+function compareHands(handA, handB) {
+  if (handA.rank !== handB.rank) {
+    return handA.rank - handB.rank;
+  }
+
+  for (let i = 0; i < Math.max(handA.values.length, handB.values.length); i++) {
+    const valueA = handA.values[i] || 0;
+    const valueB = handB.values[i] || 0;
+
+    if (valueA !== valueB) {
+      return valueA - valueB;
+    }
+  }
+
+  return 0;
+}
+
+function findWinner(room) {
+  const activePlayers = room.players.filter((player) => !player.folded);
+
+  if (activePlayers.length === 0) return null;
+
+  let bestPlayer = activePlayers[0];
+  let bestHand = evaluateSevenCards([
+    ...(bestPlayer.cards || []),
+    ...room.communityCards
+  ]);
+
+  activePlayers.slice(1).forEach((player) => {
+    const playerHand = evaluateSevenCards([
+      ...(player.cards || []),
+      ...room.communityCards
+    ]);
+
+    if (compareHands(playerHand, bestHand) > 0) {
+      bestPlayer = player;
+      bestHand = playerHand;
+    }
+  });
+
+  return {
+    player: bestPlayer,
+    hand: bestHand
+  };
+}
+
 function finishHand(room) {
   const activePlayers = room.players.filter((player) => !player.folded);
 
@@ -258,10 +523,28 @@ function finishHand(room) {
     return;
   }
 
-  const winner = activePlayers[Math.floor(Math.random() * activePlayers.length)];
+  let result;
+
+  if (activePlayers.length === 1) {
+    result = {
+      player: activePlayers[0],
+      hand: {
+        name: "Everyone else folded"
+      }
+    };
+  } else {
+    result = findWinner(room);
+  }
+
+  if (!result || !result.player) {
+    resetRoomToWaiting(room);
+    return;
+  }
+
+  const winner = result.player;
   winner.chips += room.pot;
 
-  room.status = winner.name + " wins pot " + room.pot;
+  room.status = winner.name + " wins " + room.pot + " with " + result.hand.name;
   room.phase = "showdown";
   room.handStarted = false;
 
@@ -269,6 +552,11 @@ function finishHand(room) {
     player.isTurn = false;
     player.status = player.socketId === winner.socketId ? "Winner" : "Finished";
   });
+
+  io.to(room.id).emit(
+    "gameMessage",
+    winner.name + " wins " + room.pot + " with " + result.hand.name + "."
+  );
 
   setTimeout(() => {
     if (room.players.length >= 2) {
@@ -278,7 +566,7 @@ function finishHand(room) {
       resetRoomToWaiting(room);
       emitRoom(room);
     }
-  }, 5000);
+  }, 7000);
 }
 
 function emitPrivateCards(room) {
@@ -871,8 +1159,7 @@ app.get("/", (req, res) => {
         joined: "You joined",
         bet: "Bet",
         you: "You",
-        raiseAmount: "Raise amount:",
-        needTwo: "Need at least 2 players to start."
+        raiseAmount: "Raise amount:"
       },
       fa: {
         langButton: "EN",
@@ -902,8 +1189,7 @@ app.get("/", (req, res) => {
         joined: "وارد شدی به",
         bet: "شرط",
         you: "شما",
-        raiseAmount: "مقدار افزایش:",
-        needTwo: "برای شروع حداقل ۲ بازیکن لازم است."
+        raiseAmount: "مقدار افزایش:"
       }
     };
 
