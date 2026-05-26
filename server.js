@@ -1,9 +1,40 @@
 const express = require("express");
 const http = require("http");
+const session = require("express-session");
+const bcrypt = require("bcryptjs");
+const { Pool } = require("pg");
 const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
+
+const PORT = process.env.PORT || 8080;
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
+  console.error("DATABASE_URL is missing. Add it in Railway Variables.");
+  process.exit(1);
+}
+
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+});
+
+const sessionMiddleware = session({
+  secret: process.env.SESSION_SECRET || "poker-royale-secret-change-later",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false,
+    maxAge: 1000 * 60 * 60 * 24 * 30
+  }
+});
+
+app.use(express.json());
+app.use(sessionMiddleware);
 
 const io = new Server(server, {
   cors: {
@@ -12,7 +43,150 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 8080;
+io.engine.use(sessionMiddleware);
+
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(32) UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      chips INTEGER NOT NULL DEFAULT 1000,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  console.log("Database ready.");
+}
+
+async function getUserById(id) {
+  const result = await pool.query(
+    "SELECT id, username, chips FROM users WHERE id = $1",
+    [id]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function updateUserChips(userId, chips) {
+  await pool.query(
+    "UPDATE users SET chips = $1 WHERE id = $2",
+    [chips, userId]
+  );
+}
+
+function requireLogin(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Not logged in" });
+  }
+
+  next();
+}
+
+app.post("/api/register", async (req, res) => {
+  try {
+    const username = String(req.body.username || "").trim().slice(0, 32);
+    const password = String(req.body.password || "");
+
+    if (!username || username.length < 3) {
+      return res.status(400).json({ error: "Username must be at least 3 characters." });
+    }
+
+    if (!password || password.length < 4) {
+      return res.status(400).json({ error: "Password must be at least 4 characters." });
+    }
+
+    const existing = await pool.query(
+      "SELECT id FROM users WHERE LOWER(username) = LOWER($1)",
+      [username]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: "Username already exists." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      "INSERT INTO users (username, password_hash, chips) VALUES ($1, $2, $3) RETURNING id, username, chips",
+      [username, passwordHash, 1000]
+    );
+
+    req.session.userId = result.rows[0].id;
+
+    res.json({
+      ok: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({ error: "Register failed." });
+  }
+});
+
+app.post("/api/login", async (req, res) => {
+  try {
+    const username = String(req.body.username || "").trim();
+    const password = String(req.body.password || "");
+
+    const result = await pool.query(
+      "SELECT id, username, password_hash, chips FROM users WHERE LOWER(username) = LOWER($1)",
+      [username]
+    );
+
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid username or password." });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+
+    if (!validPassword) {
+      return res.status(400).json({ error: "Invalid username or password." });
+    }
+
+    req.session.userId = user.id;
+
+    res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        chips: user.chips
+      }
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Login failed." });
+  }
+});
+
+app.post("/api/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.json({ ok: true });
+  });
+});
+
+app.get("/api/me", async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.json({ user: null });
+    }
+
+    const user = await getUserById(req.session.userId);
+
+    if (!user) {
+      req.session.destroy(() => {});
+      return res.json({ user: null });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error("Me error:", error);
+    res.status(500).json({ error: "Failed to load user." });
+  }
+});
 
 const rooms = {
   "royal-room": createRoom("royal-room", "Royal Room"),
@@ -61,11 +235,6 @@ function shuffle(deck) {
   return deck;
 }
 
-function sanitizePlayerName(name) {
-  if (!name || typeof name !== "string") return "Player";
-  return name.trim().slice(0, 14) || "Player";
-}
-
 function getPublicRooms() {
   return Object.values(rooms).map((room) => ({
     id: room.id,
@@ -83,6 +252,7 @@ function getPublicRoomState(room) {
     name: room.name,
     players: room.players.map((player) => ({
       socketId: player.socketId,
+      userId: player.userId,
       name: player.name,
       chips: player.chips,
       seat: player.seat,
@@ -255,11 +425,6 @@ function advancePhase(room) {
   setCurrentTurn(room);
 }
 
-/**
- * Texas Hold'em Hand Evaluator
- * این بخش برنده واقعی را تشخیص می‌دهد.
- */
-
 const HAND_RANKS = {
   HIGH_CARD: 1,
   ONE_PAIR: 2,
@@ -368,19 +533,11 @@ function evaluateSevenCards(cards) {
     const straightFlushHigh = getStraightHigh(flushValues);
 
     if (straightFlushHigh === 14) {
-      return {
-        rank: HAND_RANKS.ROYAL_FLUSH,
-        name: "Royal Flush",
-        values: [14]
-      };
+      return { rank: HAND_RANKS.ROYAL_FLUSH, name: "Royal Flush", values: [14] };
     }
 
     if (straightFlushHigh) {
-      return {
-        rank: HAND_RANKS.STRAIGHT_FLUSH,
-        name: "Straight Flush",
-        values: [straightFlushHigh]
-      };
+      return { rank: HAND_RANKS.STRAIGHT_FLUSH, name: "Straight Flush", values: [straightFlushHigh] };
     }
   }
 
@@ -388,12 +545,7 @@ function evaluateSevenCards(cards) {
 
   if (four) {
     const kicker = values.find((value) => value !== four.value);
-
-    return {
-      rank: HAND_RANKS.FOUR_OF_A_KIND,
-      name: "Four of a Kind",
-      values: [four.value, kicker]
-    };
+    return { rank: HAND_RANKS.FOUR_OF_A_KIND, name: "Four of a Kind", values: [four.value, kicker] };
   }
 
   const threeGroups = groups.filter((group) => group.count === 3);
@@ -402,71 +554,39 @@ function evaluateSevenCards(cards) {
   if (threeGroups.length >= 1 && (pairGroups.length >= 1 || threeGroups.length >= 2)) {
     const three = threeGroups[0];
     const pair = pairGroups[0] || threeGroups[1];
-
-    return {
-      rank: HAND_RANKS.FULL_HOUSE,
-      name: "Full House",
-      values: [three.value, pair.value]
-    };
+    return { rank: HAND_RANKS.FULL_HOUSE, name: "Full House", values: [three.value, pair.value] };
   }
 
   if (flushValues) {
-    return {
-      rank: HAND_RANKS.FLUSH,
-      name: "Flush",
-      values: flushValues.slice(0, 5)
-    };
+    return { rank: HAND_RANKS.FLUSH, name: "Flush", values: flushValues.slice(0, 5) };
   }
 
   const straightHigh = getStraightHigh(values);
 
   if (straightHigh) {
-    return {
-      rank: HAND_RANKS.STRAIGHT,
-      name: "Straight",
-      values: [straightHigh]
-    };
+    return { rank: HAND_RANKS.STRAIGHT, name: "Straight", values: [straightHigh] };
   }
 
   if (threeGroups.length >= 1) {
     const three = threeGroups[0];
     const kickers = values.filter((value) => value !== three.value).slice(0, 2);
-
-    return {
-      rank: HAND_RANKS.THREE_OF_A_KIND,
-      name: "Three of a Kind",
-      values: [three.value, ...kickers]
-    };
+    return { rank: HAND_RANKS.THREE_OF_A_KIND, name: "Three of a Kind", values: [three.value, ...kickers] };
   }
 
   if (pairGroups.length >= 2) {
     const firstPair = pairGroups[0];
     const secondPair = pairGroups[1];
     const kicker = values.find((value) => value !== firstPair.value && value !== secondPair.value);
-
-    return {
-      rank: HAND_RANKS.TWO_PAIR,
-      name: "Two Pair",
-      values: [firstPair.value, secondPair.value, kicker]
-    };
+    return { rank: HAND_RANKS.TWO_PAIR, name: "Two Pair", values: [firstPair.value, secondPair.value, kicker] };
   }
 
   if (pairGroups.length === 1) {
     const pair = pairGroups[0];
     const kickers = values.filter((value) => value !== pair.value).slice(0, 3);
-
-    return {
-      rank: HAND_RANKS.ONE_PAIR,
-      name: "One Pair",
-      values: [pair.value, ...kickers]
-    };
+    return { rank: HAND_RANKS.ONE_PAIR, name: "One Pair", values: [pair.value, ...kickers] };
   }
 
-  return {
-    rank: HAND_RANKS.HIGH_CARD,
-    name: "High Card",
-    values: values.slice(0, 5)
-  };
+  return { rank: HAND_RANKS.HIGH_CARD, name: "High Card", values: values.slice(0, 5) };
 }
 
 function compareHands(handA, handB) {
@@ -492,16 +612,10 @@ function findWinner(room) {
   if (activePlayers.length === 0) return null;
 
   let bestPlayer = activePlayers[0];
-  let bestHand = evaluateSevenCards([
-    ...(bestPlayer.cards || []),
-    ...room.communityCards
-  ]);
+  let bestHand = evaluateSevenCards([...(bestPlayer.cards || []), ...room.communityCards]);
 
   activePlayers.slice(1).forEach((player) => {
-    const playerHand = evaluateSevenCards([
-      ...(player.cards || []),
-      ...room.communityCards
-    ]);
+    const playerHand = evaluateSevenCards([...(player.cards || []), ...room.communityCards]);
 
     if (compareHands(playerHand, bestHand) > 0) {
       bestPlayer = player;
@@ -515,7 +629,7 @@ function findWinner(room) {
   };
 }
 
-function finishHand(room) {
+async function finishHand(room) {
   const activePlayers = room.players.filter((player) => !player.folded);
 
   if (activePlayers.length === 0) {
@@ -528,9 +642,7 @@ function finishHand(room) {
   if (activePlayers.length === 1) {
     result = {
       player: activePlayers[0],
-      hand: {
-        name: "Everyone else folded"
-      }
+      hand: { name: "Everyone else folded" }
     };
   } else {
     result = findWinner(room);
@@ -553,10 +665,16 @@ function finishHand(room) {
     player.status = player.socketId === winner.socketId ? "Winner" : "Finished";
   });
 
+  for (const player of room.players) {
+    await updateUserChips(player.userId, player.chips);
+  }
+
   io.to(room.id).emit(
     "gameMessage",
     winner.name + " wins " + room.pot + " with " + result.hand.name + "."
   );
+
+  emitRoom(room);
 
   setTimeout(() => {
     if (room.players.length >= 2) {
@@ -592,50 +710,33 @@ app.get("/", (req, res) => {
   <title>Poker Royale</title>
 
   <style>
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
     body {
       margin: 0;
       min-height: 100vh;
       font-family: Arial, sans-serif;
-      background:
-        radial-gradient(circle at top, #0f5132 0%, #07150d 45%, #020403 100%);
+      background: radial-gradient(circle at top, #0f5132 0%, #07150d 45%, #020403 100%);
       color: white;
       overflow-x: hidden;
       padding-bottom: calc(118px + env(safe-area-inset-bottom));
     }
 
-    body.rtl {
-      direction: rtl;
-      font-family: Arial, Tahoma, sans-serif;
-    }
+    body.rtl { direction: rtl; font-family: Arial, Tahoma, sans-serif; }
 
-    .app {
-      width: 100%;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 16px;
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 14px;
-    }
+    .app { width: 100%; max-width: 1100px; margin: 0 auto; padding: 16px; }
 
     .top-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 10px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .logo {
       color: #facc15;
-      font-size: 30px;
+      font-size: 28px;
       font-weight: 900;
       text-shadow: 0 0 20px rgba(250, 204, 21, 0.65);
     }
@@ -650,14 +751,57 @@ app.get("/", (req, res) => {
       cursor: pointer;
     }
 
-    .subtitle {
-      font-size: 13px;
-      color: #d1d5db;
+    .auth-panel {
+      background: rgba(0,0,0,0.46);
+      border: 1px solid rgba(250,204,21,0.24);
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 14px;
     }
 
+    .auth-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .input {
+      width: 100%;
+      border: 1px solid rgba(250, 204, 21, 0.35);
+      background: rgba(0, 0, 0, 0.45);
+      color: white;
+      border-radius: 12px;
+      padding: 12px;
+      outline: none;
+      font-size: 15px;
+    }
+
+    .small-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      color: white;
+      background: #166534;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .register-btn { background: #ca8a04; color: #111827; }
+
+    .logout-btn { background: #991b1b; }
+
+    .user-card {
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-info strong { color: #facc15; }
+
     .top-status {
-      margin: 12px auto 0;
-      max-width: 620px;
+      margin: 12px auto;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
@@ -672,9 +816,7 @@ app.get("/", (req, res) => {
       color: #d1d5db;
     }
 
-    .status-pill strong {
-      color: #facc15;
-    }
+    .status-pill strong { color: #facc15; }
 
     .main-layout {
       display: grid;
@@ -688,26 +830,9 @@ app.get("/", (req, res) => {
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 18px;
       padding: 14px;
-      box-shadow: 0 18px 55px rgba(0, 0, 0, 0.35);
     }
 
-    .panel h2 {
-      margin: 0 0 12px;
-      color: #facc15;
-      font-size: 17px;
-    }
-
-    .input {
-      width: 100%;
-      border: 1px solid rgba(250, 204, 21, 0.35);
-      background: rgba(0, 0, 0, 0.45);
-      color: white;
-      border-radius: 12px;
-      padding: 12px;
-      outline: none;
-      margin-bottom: 12px;
-      font-size: 15px;
-    }
+    .panel h2 { margin: 0 0 12px; color: #facc15; font-size: 17px; }
 
     .room-card {
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -716,7 +841,6 @@ app.get("/", (req, res) => {
       padding: 12px;
       margin-bottom: 10px;
       cursor: pointer;
-      transition: 0.2s;
     }
 
     .room-card.active {
@@ -724,27 +848,17 @@ app.get("/", (req, res) => {
       background: rgba(250, 204, 21, 0.12);
     }
 
-    .room-title {
-      font-weight: 900;
-      margin-bottom: 5px;
-    }
+    .room-title { font-weight: 900; margin-bottom: 5px; }
 
-    .room-meta {
-      color: #d1d5db;
-      font-size: 12px;
-      line-height: 1.55;
-    }
+    .room-meta { color: #d1d5db; font-size: 12px; line-height: 1.55; }
 
     .poker-table {
       position: relative;
       min-height: 560px;
       border-radius: 48%;
-      background:
-        radial-gradient(circle at center, #15803d 0%, #166534 45%, #052e16 100%);
+      background: radial-gradient(circle at center, #15803d 0%, #166534 45%, #052e16 100%);
       border: 12px solid #7c2d12;
-      box-shadow:
-        inset 0 0 48px rgba(0, 0, 0, 0.56),
-        0 25px 70px rgba(0, 0, 0, 0.55);
+      box-shadow: inset 0 0 48px rgba(0,0,0,0.56), 0 25px 70px rgba(0,0,0,0.55);
       overflow: hidden;
     }
 
@@ -768,7 +882,6 @@ app.get("/", (req, res) => {
       font-weight: 900;
       font-size: 13px;
       z-index: 7;
-      box-shadow: 0 0 18px rgba(250, 204, 21, 0.55);
     }
 
     .community {
@@ -792,12 +905,10 @@ app.get("/", (req, res) => {
       justify-content: center;
       font-weight: 900;
       font-size: 20px;
-      box-shadow: 0 12px 22px rgba(0, 0, 0, 0.38);
+      box-shadow: 0 12px 22px rgba(0,0,0,0.38);
     }
 
-    .card.red {
-      color: #dc2626;
-    }
+    .card.red { color: #dc2626; }
 
     .card.back {
       background: linear-gradient(135deg, #991b1b, #450a0a);
@@ -810,8 +921,8 @@ app.get("/", (req, res) => {
       top: 282px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.58);
-      border: 1px solid rgba(250, 204, 21, 0.55);
+      background: rgba(0,0,0,0.58);
+      border: 1px solid rgba(250,204,21,0.55);
       border-radius: 18px;
       padding: 10px 18px;
       color: #facc15;
@@ -824,8 +935,8 @@ app.get("/", (req, res) => {
       top: 340px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(2, 6, 23, 0.68);
-      border: 1px solid rgba(34, 197, 94, 0.5);
+      background: rgba(2,6,23,0.68);
+      border: 1px solid rgba(34,197,94,0.5);
       border-radius: 14px;
       padding: 10px 14px;
       min-width: 230px;
@@ -868,15 +979,13 @@ app.get("/", (req, res) => {
     }
 
     .player.turn .avatar {
-      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.55), 0 0 24px rgba(34, 197, 94, 0.65);
+      box-shadow: 0 0 0 4px rgba(34,197,94,0.55), 0 0 24px rgba(34,197,94,0.65);
     }
 
-    .player.folded {
-      opacity: 0.45;
-    }
+    .player.folded { opacity: 0.45; }
 
     .player-name {
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,0.7);
       border-radius: 999px;
       padding: 5px 8px;
       font-size: 12px;
@@ -886,17 +995,9 @@ app.get("/", (req, res) => {
       white-space: nowrap;
     }
 
-    .chips {
-      margin-top: 4px;
-      color: #facc15;
-      font-size: 12px;
-    }
+    .chips { margin-top: 4px; color: #facc15; font-size: 12px; }
 
-    .bet {
-      margin-top: 2px;
-      color: #93c5fd;
-      font-size: 11px;
-    }
+    .bet { margin-top: 2px; color: #93c5fd; font-size: 11px; }
 
     .seat-0 { left: 50%; bottom: 24px; transform: translateX(-50%); }
     .seat-1 { left: 48px; bottom: 115px; }
@@ -916,8 +1017,8 @@ app.get("/", (req, res) => {
       gap: 10px;
       flex-wrap: wrap;
       width: min(96%, 580px);
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(250, 204, 21, 0.25);
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(250,204,21,0.25);
       border-radius: 22px;
       padding: 10px;
       backdrop-filter: blur(10px);
@@ -934,155 +1035,95 @@ app.get("/", (req, res) => {
       font-size: 14px;
     }
 
-    .btn:disabled {
-      opacity: 0.42;
-      cursor: not-allowed;
-    }
+    .btn:disabled { opacity: 0.42; cursor: not-allowed; }
 
     .fold { background: #991b1b; }
     .call { background: #166534; }
     .raise { background: #ca8a04; color: #111827; }
     .start { background: #2563eb; }
 
-    .voice-log {
-      margin-top: 14px;
-      display: grid;
-      grid-template-columns: 1fr 1.3fr;
-      gap: 12px;
-    }
-
-    .voice-box,
     .log {
-      background: rgba(0, 0, 0, 0.42);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      margin-top: 14px;
+      background: rgba(0,0,0,0.42);
+      border: 1px solid rgba(255,255,255,0.12);
       border-radius: 16px;
       padding: 12px;
       font-size: 13px;
       color: #d1d5db;
-    }
-
-    .log {
-      max-height: 155px;
+      max-height: 170px;
       overflow-y: auto;
       line-height: 1.55;
     }
 
     .log-item {
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
       padding: 5px 0;
     }
 
-    .log-item:last-child {
-      border-bottom: none;
-    }
-
     @media (max-width: 850px) {
-      .main-layout {
-        grid-template-columns: 1fr;
-      }
-
-      .top-row {
-        align-items: flex-start;
-      }
-
-      .logo {
-        font-size: 24px;
-        text-align: left;
-      }
-
-      body.rtl .logo {
-        text-align: right;
-      }
-
-      .top-status {
-        grid-template-columns: 1fr;
-      }
-
-      .poker-table {
-        min-height: 520px;
-        border-width: 8px;
-      }
-
-      .community {
-        top: 178px;
-        gap: 6px;
-      }
-
-      .card {
-        width: 43px;
-        height: 62px;
-        font-size: 17px;
-      }
-
-      .pot {
-        top: 260px;
-      }
-
-      .turn-status {
-        top: 314px;
-        min-width: 215px;
-      }
-
-      .my-cards {
-        bottom: 100px;
-      }
-
-      .player {
-        width: 100px;
-      }
-
-      .avatar {
-        width: 50px;
-        height: 50px;
-      }
-
+      .auth-grid { grid-template-columns: 1fr; }
+      .main-layout { grid-template-columns: 1fr; }
+      .top-status { grid-template-columns: 1fr; }
+      .logo { font-size: 24px; }
+      .poker-table { min-height: 520px; border-width: 8px; }
+      .community { top: 178px; gap: 6px; }
+      .card { width: 43px; height: 62px; font-size: 17px; }
+      .pot { top: 260px; }
+      .turn-status { top: 314px; min-width: 215px; }
+      .my-cards { bottom: 100px; }
+      .player { width: 100px; }
+      .avatar { width: 50px; height: 50px; }
       .seat-0 { left: 50%; bottom: 22px; transform: translateX(-50%); }
       .seat-1 { left: 10px; bottom: 112px; }
       .seat-2 { left: 10px; top: 108px; }
       .seat-3 { right: 10px; top: 108px; }
       .seat-4 { right: 10px; bottom: 112px; }
       .seat-5 { left: 50%; top: 66px; transform: translateX(-50%); }
-
-      .voice-log {
-        grid-template-columns: 1fr;
-      }
-
-      .btn {
-        min-width: 75px;
-        padding: 11px 12px;
-      }
+      .btn { min-width: 75px; padding: 11px 12px; }
     }
   </style>
 </head>
 
 <body>
   <div class="app">
-    <header class="header">
-      <div class="top-row">
-        <div class="logo">♠ Poker Royale ♣</div>
-        <button class="lang-btn" id="langBtn">FA</button>
+    <div class="top-row">
+      <div class="logo">♠ Poker Royale ♣</div>
+      <button class="lang-btn" id="langBtn">FA</button>
+    </div>
+
+    <div class="auth-panel">
+      <div id="authForm" class="auth-grid">
+        <input id="authUsername" class="input" placeholder="Username" />
+        <input id="authPassword" class="input" type="password" placeholder="Password" />
+        <button class="small-btn" id="loginBtn">Login</button>
+        <button class="small-btn register-btn" id="registerBtn">Register</button>
       </div>
 
-      <div class="subtitle" id="subtitle">Real-time Multiplayer Texas Hold'em Foundation</div>
-
-      <div class="top-status">
-        <div class="status-pill"><span id="connectionLabel">Connection</span>: <strong id="connectionStatus">Connecting...</strong></div>
-        <div class="status-pill"><span id="onlineLabel">Online</span>: <strong id="onlineCount">0</strong></div>
-        <div class="status-pill"><span id="phaseLabel">Phase</span>: <strong id="phaseStatus">waiting</strong></div>
+      <div id="userCard" class="user-card">
+        <div class="user-info">
+          <div>Welcome, <strong id="panelUsername">Player</strong></div>
+          <div>Chips: <strong id="panelChips">0</strong></div>
+        </div>
+        <button class="small-btn logout-btn" id="logoutBtn">Logout</button>
       </div>
-    </header>
+    </div>
+
+    <div class="top-status">
+      <div class="status-pill">Connection: <strong id="connectionStatus">Connecting...</strong></div>
+      <div class="status-pill">Online: <strong id="onlineCount">0</strong></div>
+      <div class="status-pill">Phase: <strong id="phaseStatus">waiting</strong></div>
+    </div>
 
     <div class="main-layout">
       <aside class="panel">
-        <h2 id="lobbyTitle">Lobby Rooms</h2>
-        <input id="playerName" class="input" maxlength="14" placeholder="Enter your name" />
+        <h2>Lobby Rooms</h2>
         <div id="rooms"></div>
       </aside>
 
-      <main class="table-area">
+      <main>
         <div class="poker-table">
           <div class="table-line"></div>
-          <div class="dealer" id="dealerLabel">DEALER</div>
+          <div class="dealer">DEALER</div>
 
           <div class="community" id="communityCards">
             <div class="card back">♠</div>
@@ -1093,20 +1134,13 @@ app.get("/", (req, res) => {
           </div>
 
           <div class="pot" id="potDisplay">POT: 0</div>
-          <div class="turn-status" id="turnStatus">Choose a room to join</div>
+          <div class="turn-status" id="turnStatus">Login first, then choose a room</div>
           <div class="my-cards" id="myCards"></div>
           <div id="players"></div>
         </div>
 
-        <div class="voice-log">
-          <div class="voice-box">
-            <strong id="voiceTitle">🎙 Voice Chat</strong><br />
-            <span id="voiceText">UI ready. WebRTC will be added later.</span>
-          </div>
-
-          <div class="log" id="gameLog">
-            <div class="log-item" id="welcomeLog">Welcome to Poker Royale.</div>
-          </div>
+        <div class="log" id="gameLog">
+          <div class="log-item">Welcome to Poker Royale.</div>
         </div>
       </main>
     </div>
@@ -1124,126 +1158,102 @@ app.get("/", (req, res) => {
   <script>
     const socket = io();
 
+    let currentUser = null;
     let currentRoomId = null;
     let joined = false;
     let mySocketId = null;
     let latestRoom = null;
     let currentLang = localStorage.getItem("pokerLang") || "en";
 
-    const t = {
+    const text = {
       en: {
         langButton: "FA",
-        subtitle: "Real-time Multiplayer Texas Hold'em Foundation",
-        connection: "Connection",
-        connecting: "Connecting...",
-        connected: "Connected",
-        disconnected: "Disconnected",
-        online: "Online",
-        phase: "Phase",
-        lobbyRooms: "Lobby Rooms",
-        enterName: "Enter your name",
-        dealer: "DEALER",
-        chooseRoom: "Choose a room to join",
-        voiceTitle: "🎙 Voice Chat",
-        voiceText: "UI ready. WebRTC will be added later.",
-        welcome: "Welcome to Poker Royale.",
-        start: "Start",
-        fold: "Fold",
-        call: "Call",
-        raise: "Raise",
-        players: "Players",
-        pot: "Pot",
-        status: "Status",
-        needName: "Please enter your name first.",
-        roomFull: "This room is full.",
+        loginFirst: "Login first, then choose a room",
+        username: "Username",
+        password: "Password",
+        login: "Login",
+        register: "Register",
+        logout: "Logout",
+        welcome: "Welcome",
+        chips: "Chips",
+        needLogin: "Please login or register first.",
         joined: "You joined",
-        bet: "Bet",
+        raiseAmount: "Raise amount:",
         you: "You",
-        raiseAmount: "Raise amount:"
+        bet: "Bet",
+        pot: "POT"
       },
       fa: {
         langButton: "EN",
-        subtitle: "بنیاد بازی چندنفره آنلاین Texas Hold'em",
-        connection: "اتصال",
-        connecting: "در حال اتصال...",
-        connected: "وصل شد",
-        disconnected: "قطع شد",
-        online: "آنلاین",
-        phase: "مرحله",
-        lobbyRooms: "اتاق‌های لابی",
-        enterName: "نام خود را وارد کنید",
-        dealer: "دیلر",
-        chooseRoom: "یک اتاق انتخاب کنید",
-        voiceTitle: "🎙 گفتگوی صوتی",
-        voiceText: "ظاهر آماده است. WebRTC بعداً اضافه می‌شود.",
-        welcome: "به Poker Royale خوش آمدید.",
-        start: "شروع",
-        fold: "انصراف",
-        call: "کال",
-        raise: "افزایش",
-        players: "بازیکن‌ها",
-        pot: "پات",
-        status: "وضعیت",
-        needName: "اول نام خود را وارد کنید.",
-        roomFull: "این اتاق پر است.",
+        loginFirst: "اول وارد حساب شو، بعد اتاق انتخاب کن",
+        username: "نام کاربری",
+        password: "رمز عبور",
+        login: "ورود",
+        register: "ثبت‌نام",
+        logout: "خروج",
+        welcome: "خوش آمدی",
+        chips: "چیپ‌ها",
+        needLogin: "اول وارد حساب شو یا ثبت‌نام کن.",
         joined: "وارد شدی به",
-        bet: "شرط",
+        raiseAmount: "مقدار افزایش:",
         you: "شما",
-        raiseAmount: "مقدار افزایش:"
+        bet: "شرط",
+        pot: "پات"
       }
     };
+
+    const langBtn = document.getElementById("langBtn");
+    const authForm = document.getElementById("authForm");
+    const userCard = document.getElementById("userCard");
+    const authUsername = document.getElementById("authUsername");
+    const authPassword = document.getElementById("authPassword");
+    const loginBtn = document.getElementById("loginBtn");
+    const registerBtn = document.getElementById("registerBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const panelUsername = document.getElementById("panelUsername");
+    const panelChips = document.getElementById("panelChips");
 
     const connectionStatus = document.getElementById("connectionStatus");
     const onlineCount = document.getElementById("onlineCount");
     const phaseStatus = document.getElementById("phaseStatus");
     const roomsEl = document.getElementById("rooms");
     const playersEl = document.getElementById("players");
-    const playerNameInput = document.getElementById("playerName");
     const communityCardsEl = document.getElementById("communityCards");
     const myCardsEl = document.getElementById("myCards");
     const potDisplay = document.getElementById("potDisplay");
     const turnStatus = document.getElementById("turnStatus");
     const gameLog = document.getElementById("gameLog");
 
-    const langBtn = document.getElementById("langBtn");
     const startBtn = document.getElementById("startBtn");
     const foldBtn = document.getElementById("foldBtn");
     const callBtn = document.getElementById("callBtn");
     const raiseBtn = document.getElementById("raiseBtn");
 
-    function applyLanguage() {
-      const tr = t[currentLang];
+    function tr() {
+      return text[currentLang];
+    }
 
+    function applyLanguage() {
       document.documentElement.lang = currentLang;
       document.documentElement.dir = currentLang === "fa" ? "rtl" : "ltr";
       document.body.classList.toggle("rtl", currentLang === "fa");
 
-      langBtn.textContent = tr.langButton;
-      document.getElementById("subtitle").textContent = tr.subtitle;
-      document.getElementById("connectionLabel").textContent = tr.connection;
-      document.getElementById("onlineLabel").textContent = tr.online;
-      document.getElementById("phaseLabel").textContent = tr.phase;
-      document.getElementById("lobbyTitle").textContent = tr.lobbyRooms;
-      document.getElementById("dealerLabel").textContent = tr.dealer;
-      document.getElementById("voiceTitle").textContent = tr.voiceTitle;
-      document.getElementById("voiceText").textContent = tr.voiceText;
-      document.getElementById("welcomeLog").textContent = tr.welcome;
-
-      playerNameInput.placeholder = tr.enterName;
-
-      startBtn.textContent = tr.start;
-      foldBtn.textContent = tr.fold;
-      callBtn.textContent = tr.call;
-      raiseBtn.textContent = tr.raise;
+      langBtn.textContent = tr().langButton;
+      authUsername.placeholder = tr().username;
+      authPassword.placeholder = tr().password;
+      loginBtn.textContent = tr().login;
+      registerBtn.textContent = tr().register;
+      logoutBtn.textContent = tr().logout;
 
       if (!joined) {
-        turnStatus.textContent = tr.chooseRoom;
+        turnStatus.textContent = tr().loginFirst;
       }
 
+      updateUserPanel();
+
       if (latestRoom) {
-        renderRooms(window.latestRooms || []);
-        renderPlayers(latestRoom.players);
         updateTableText(latestRoom);
+        renderPlayers(latestRoom.players);
       }
     }
 
@@ -1260,6 +1270,84 @@ app.get("/", (req, res) => {
       gameLog.prepend(item);
     }
 
+    async function api(path, body) {
+      const response = await fetch(path, {
+        method: body ? "POST" : "GET",
+        headers: body ? { "Content-Type": "application/json" } : {},
+        body: body ? JSON.stringify(body) : undefined
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Request failed.");
+      }
+
+      return data;
+    }
+
+    async function loadMe() {
+      const data = await api("/api/me");
+      currentUser = data.user;
+      updateUserPanel();
+    }
+
+    function updateUserPanel() {
+      if (currentUser) {
+        authForm.style.display = "none";
+        userCard.style.display = "flex";
+        panelUsername.textContent = currentUser.username;
+        panelChips.textContent = currentUser.chips;
+      } else {
+        authForm.style.display = "grid";
+        userCard.style.display = "none";
+      }
+    }
+
+    loginBtn.onclick = async function() {
+      try {
+        const data = await api("/api/login", {
+          username: authUsername.value,
+          password: authPassword.value
+        });
+
+        currentUser = data.user;
+        updateUserPanel();
+        addLog("Logged in as " + currentUser.username);
+      } catch (error) {
+        alert(error.message);
+      }
+    };
+
+    registerBtn.onclick = async function() {
+      try {
+        const data = await api("/api/register", {
+          username: authUsername.value,
+          password: authPassword.value
+        });
+
+        currentUser = data.user;
+        updateUserPanel();
+        addLog("Registered as " + currentUser.username);
+      } catch (error) {
+        alert(error.message);
+      }
+    };
+
+    logoutBtn.onclick = async function() {
+      await api("/api/logout", {});
+      currentUser = null;
+      joined = false;
+      currentRoomId = null;
+      latestRoom = null;
+      updateUserPanel();
+      updateButtons(null);
+      playersEl.innerHTML = "";
+      myCardsEl.innerHTML = "";
+      turnStatus.textContent = tr().loginFirst;
+      addLog("Logged out.");
+    };
+
     function cardIsRed(card) {
       return card.includes("♥") || card.includes("♦");
     }
@@ -1274,42 +1362,29 @@ app.get("/", (req, res) => {
     }
 
     function renderRooms(rooms) {
-      window.latestRooms = rooms;
       roomsEl.innerHTML = "";
 
       rooms.forEach(function(room) {
-        const tr = t[currentLang];
         const card = document.createElement("div");
         card.className = "room-card" + (room.id === currentRoomId ? " active" : "");
 
         card.innerHTML =
           '<div class="room-title">' + room.name + '</div>' +
           '<div class="room-meta">' +
-          tr.players + ': ' + room.playerCount + '/6<br />' +
-          tr.pot + ': ' + room.pot + '<br />' +
-          tr.phase + ': ' + room.phase + '<br />' +
-          tr.status + ': ' + room.status +
+          'Players: ' + room.playerCount + '/6<br />' +
+          'Pot: ' + room.pot + '<br />' +
+          'Phase: ' + room.phase + '<br />' +
+          'Status: ' + room.status +
           '</div>';
 
         card.onclick = function() {
-          const name = playerNameInput.value.trim();
-
-          if (!name) {
-            alert(t[currentLang].needName);
-            return;
-          }
-
-          if (room.playerCount >= 6 && room.id !== currentRoomId) {
-            alert(t[currentLang].roomFull);
+          if (!currentUser) {
+            alert(tr().needLogin);
             return;
           }
 
           currentRoomId = room.id;
-
-          socket.emit("joinRoom", {
-            roomId: room.id,
-            name: name
-          });
+          socket.emit("joinRoom", { roomId: room.id });
         };
 
         roomsEl.appendChild(card);
@@ -1321,7 +1396,6 @@ app.get("/", (req, res) => {
 
       players.forEach(function(player, index) {
         const el = document.createElement("div");
-
         let className = "player seat-" + index;
 
         if (player.isTurn) className += " turn";
@@ -1330,13 +1404,13 @@ app.get("/", (req, res) => {
         el.className = className;
 
         const initial = player.name ? player.name.charAt(0).toUpperCase() : "?";
-        const youLabel = player.socketId === mySocketId ? " (" + t[currentLang].you + ")" : "";
+        const youLabel = currentUser && player.userId === currentUser.id ? " (" + tr().you + ")" : "";
 
         el.innerHTML =
           '<div class="avatar">' + initial + '</div>' +
           '<div class="player-name">' + player.name + youLabel + '</div>' +
           '<div class="chips">🟡 ' + player.chips + '</div>' +
-          '<div class="bet">' + t[currentLang].bet + ': ' + player.bet + '</div>';
+          '<div class="bet">' + tr().bet + ': ' + player.bet + '</div>';
 
         playersEl.appendChild(el);
       });
@@ -1362,7 +1436,7 @@ app.get("/", (req, res) => {
     }
 
     function updateTableText(room) {
-      potDisplay.textContent = t[currentLang].pot.toUpperCase() + ": " + room.pot;
+      potDisplay.textContent = tr().pot + ": " + room.pot;
       turnStatus.textContent = room.status;
       phaseStatus.textContent = room.phase;
     }
@@ -1370,7 +1444,7 @@ app.get("/", (req, res) => {
     function updateButtons(room) {
       startBtn.disabled = !joined;
 
-      if (!room || !joined) {
+      if (!room || !joined || !currentUser) {
         foldBtn.disabled = true;
         callBtn.disabled = true;
         raiseBtn.disabled = true;
@@ -1378,7 +1452,7 @@ app.get("/", (req, res) => {
       }
 
       const me = room.players.find(function(player) {
-        return player.socketId === mySocketId;
+        return player.userId === currentUser.id;
       });
 
       const isMyTurn = me && me.isTurn && !me.folded && room.phase !== "waiting" && room.phase !== "showdown";
@@ -1390,15 +1464,14 @@ app.get("/", (req, res) => {
 
     socket.on("connect", function() {
       mySocketId = socket.id;
-      connectionStatus.textContent = t[currentLang].connected;
+      connectionStatus.textContent = "Connected";
       connectionStatus.style.color = "#22c55e";
-      addLog(t[currentLang].connected);
+      addLog("Connected.");
     });
 
     socket.on("disconnect", function() {
-      connectionStatus.textContent = t[currentLang].disconnected;
+      connectionStatus.textContent = "Disconnected";
       connectionStatus.style.color = "#ef4444";
-      addLog(t[currentLang].disconnected);
       updateButtons(null);
     });
 
@@ -1420,7 +1493,7 @@ app.get("/", (req, res) => {
       renderCommunity(room.communityCards);
       updateButtons(room);
 
-      addLog(t[currentLang].joined + " " + room.name);
+      addLog(tr().joined + " " + room.name);
     });
 
     socket.on("roomState", function(room) {
@@ -1438,8 +1511,12 @@ app.get("/", (req, res) => {
       renderMyCards(cards);
     });
 
-    socket.on("gameMessage", function(message) {
+    socket.on("gameMessage", async function(message) {
       addLog(message);
+
+      try {
+        await loadMe();
+      } catch (e) {}
     });
 
     startBtn.onclick = function() {
@@ -1449,26 +1526,18 @@ app.get("/", (req, res) => {
 
     foldBtn.onclick = function() {
       if (!joined || !currentRoomId) return;
-
-      socket.emit("playerAction", {
-        roomId: currentRoomId,
-        action: "Fold"
-      });
+      socket.emit("playerAction", { roomId: currentRoomId, action: "Fold" });
     };
 
     callBtn.onclick = function() {
       if (!joined || !currentRoomId) return;
-
-      socket.emit("playerAction", {
-        roomId: currentRoomId,
-        action: "Call"
-      });
+      socket.emit("playerAction", { roomId: currentRoomId, action: "Call" });
     };
 
     raiseBtn.onclick = function() {
       if (!joined || !currentRoomId) return;
 
-      const amount = prompt(t[currentLang].raiseAmount, "50");
+      const amount = prompt(tr().raiseAmount, "50");
 
       if (!amount) return;
 
@@ -1480,6 +1549,7 @@ app.get("/", (req, res) => {
     };
 
     applyLanguage();
+    loadMe().catch(() => {});
   </script>
 </body>
 </html>
@@ -1492,50 +1562,75 @@ io.on("connection", (socket) => {
   io.emit("onlineCount", io.engine.clientsCount);
   socket.emit("roomsUpdate", getPublicRooms());
 
-  socket.on("joinRoom", ({ roomId, name }) => {
-    const room = rooms[roomId];
+  socket.on("joinRoom", async ({ roomId }) => {
+    try {
+      const session = socket.request.session;
 
-    if (!room) {
-      socket.emit("gameMessage", "Room not found.");
-      return;
+      if (!session || !session.userId) {
+        socket.emit("gameMessage", "Please login first.");
+        return;
+      }
+
+      const user = await getUserById(session.userId);
+
+      if (!user) {
+        socket.emit("gameMessage", "User not found. Please login again.");
+        return;
+      }
+
+      const room = rooms[roomId];
+
+      if (!room) {
+        socket.emit("gameMessage", "Room not found.");
+        return;
+      }
+
+      const existing = findPlayerLocation(socket.id);
+
+      if (existing) {
+        socket.leave(existing.room.id);
+        removePlayer(socket.id);
+        emitRoom(existing.room);
+      }
+
+      const alreadyInRoom = room.players.find((p) => p.userId === user.id);
+
+      if (alreadyInRoom) {
+        socket.emit("gameMessage", "This account is already seated in this room.");
+        return;
+      }
+
+      if (room.players.length >= 6) {
+        socket.emit("gameMessage", "This room is full.");
+        return;
+      }
+
+      const player = {
+        socketId: socket.id,
+        userId: user.id,
+        name: user.username,
+        chips: user.chips,
+        seat: room.players.length,
+        cards: [],
+        bet: 0,
+        folded: false,
+        isTurn: false,
+        status: "Waiting"
+      };
+
+      room.players.push(player);
+      room.status = user.username + " joined the table";
+
+      socket.join(room.id);
+
+      socket.emit("roomJoined", getPublicRoomState(room));
+      io.to(room.id).emit("gameMessage", user.username + " joined " + room.name + ".");
+
+      emitRoom(room);
+    } catch (error) {
+      console.error("Join room error:", error);
+      socket.emit("gameMessage", "Failed to join room.");
     }
-
-    const existing = findPlayerLocation(socket.id);
-
-    if (existing) {
-      socket.leave(existing.room.id);
-      removePlayer(socket.id);
-      emitRoom(existing.room);
-    }
-
-    if (room.players.length >= 6) {
-      socket.emit("gameMessage", "This room is full.");
-      return;
-    }
-
-    const cleanName = sanitizePlayerName(name);
-
-    const player = {
-      socketId: socket.id,
-      name: cleanName,
-      chips: 1000,
-      seat: room.players.length,
-      cards: [],
-      bet: 0,
-      folded: false,
-      isTurn: false,
-      status: "Waiting"
-    };
-
-    room.players.push(player);
-    room.status = cleanName + " joined the table";
-
-    socket.join(room.id);
-
-    socket.emit("roomJoined", getPublicRoomState(room));
-    io.to(room.id).emit("gameMessage", cleanName + " joined " + room.name + ".");
-
-    emitRoom(room);
   });
 
   socket.on("startHand", ({ roomId }) => {
@@ -1560,91 +1655,102 @@ io.on("connection", (socket) => {
     emitRoom(room);
   });
 
-  socket.on("playerAction", ({ roomId, action, amount }) => {
-    const room = rooms[roomId];
+  socket.on("playerAction", async ({ roomId, action, amount }) => {
+    try {
+      const room = rooms[roomId];
 
-    if (!room) return;
+      if (!room) return;
 
-    const player = room.players.find((p) => p.socketId === socket.id);
+      const player = room.players.find((p) => p.socketId === socket.id);
 
-    if (!player) {
-      socket.emit("gameMessage", "You are not seated in this room.");
-      return;
-    }
-
-    if (room.phase === "waiting" || room.phase === "showdown") {
-      socket.emit("gameMessage", "Hand is not active.");
-      return;
-    }
-
-    if (!player.isTurn) {
-      socket.emit("gameMessage", "It is not your turn.");
-      return;
-    }
-
-    if (action === "Fold") {
-      player.folded = true;
-      player.status = "Folded";
-      room.status = player.name + " folded";
-      io.to(room.id).emit("gameMessage", player.name + " folded.");
-      nextTurn(room);
-      emitRoom(room);
-      return;
-    }
-
-    if (action === "Call") {
-      const callAmount = room.currentBet;
-
-      if (player.chips < callAmount) {
-        socket.emit("gameMessage", "Not enough chips.");
+      if (!player) {
+        socket.emit("gameMessage", "You are not seated in this room.");
         return;
       }
 
-      player.chips -= callAmount;
-      player.bet += callAmount;
-      room.pot += callAmount;
-      player.status = "Called";
-      room.status = player.name + " called " + callAmount;
+      if (room.phase === "waiting" || room.phase === "showdown") {
+        socket.emit("gameMessage", "Hand is not active.");
+        return;
+      }
 
-      io.to(room.id).emit("gameMessage", player.name + " called " + callAmount + ".");
+      if (!player.isTurn) {
+        socket.emit("gameMessage", "It is not your turn.");
+        return;
+      }
 
-      const activePlayers = room.players.filter((p) => !p.folded);
-
-      if (activePlayers.every((p) => p.bet >= room.currentBet)) {
-        advancePhase(room);
-      } else {
+      if (action === "Fold") {
+        player.folded = true;
+        player.status = "Folded";
+        room.status = player.name + " folded";
+        io.to(room.id).emit("gameMessage", player.name + " folded.");
         nextTurn(room);
-      }
-
-      emitRoom(room);
-      return;
-    }
-
-    if (action === "Raise") {
-      const raiseAmount = Number(amount);
-
-      if (!Number.isFinite(raiseAmount) || raiseAmount <= room.currentBet) {
-        socket.emit("gameMessage", "Raise must be higher than current bet.");
+        emitRoom(room);
         return;
       }
 
-      if (player.chips < raiseAmount) {
-        socket.emit("gameMessage", "Not enough chips.");
+      if (action === "Call") {
+        const callAmount = room.currentBet;
+
+        if (player.chips < callAmount) {
+          socket.emit("gameMessage", "Not enough chips.");
+          return;
+        }
+
+        player.chips -= callAmount;
+        player.bet += callAmount;
+        room.pot += callAmount;
+
+        await updateUserChips(player.userId, player.chips);
+
+        player.status = "Called";
+        room.status = player.name + " called " + callAmount;
+
+        io.to(room.id).emit("gameMessage", player.name + " called " + callAmount + ".");
+
+        const activePlayers = room.players.filter((p) => !p.folded);
+
+        if (activePlayers.every((p) => p.bet >= room.currentBet)) {
+          advancePhase(room);
+        } else {
+          nextTurn(room);
+        }
+
+        emitRoom(room);
         return;
       }
 
-      player.chips -= raiseAmount;
-      player.bet += raiseAmount;
-      room.pot += raiseAmount;
-      room.currentBet = raiseAmount;
-      player.status = "Raised";
-      room.status = player.name + " raised to " + raiseAmount;
+      if (action === "Raise") {
+        const raiseAmount = Number(amount);
 
-      io.to(room.id).emit("gameMessage", player.name + " raised to " + raiseAmount + ".");
+        if (!Number.isFinite(raiseAmount) || raiseAmount <= room.currentBet) {
+          socket.emit("gameMessage", "Raise must be higher than current bet.");
+          return;
+        }
 
-      nextTurn(room);
-      emitRoom(room);
-      return;
+        if (player.chips < raiseAmount) {
+          socket.emit("gameMessage", "Not enough chips.");
+          return;
+        }
+
+        player.chips -= raiseAmount;
+        player.bet += raiseAmount;
+        room.pot += raiseAmount;
+        room.currentBet = raiseAmount;
+
+        await updateUserChips(player.userId, player.chips);
+
+        player.status = "Raised";
+        room.status = player.name + " raised to " + raiseAmount;
+
+        io.to(room.id).emit("gameMessage", player.name + " raised to " + raiseAmount + ".");
+
+        nextTurn(room);
+        emitRoom(room);
+        return;
+      }
+    } catch (error) {
+      console.error("Player action error:", error);
+      socket.emit("gameMessage", "Action failed.");
     }
   });
 
@@ -1662,6 +1768,13 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log("Poker Royale server running on port " + PORT);
-});
+initDb()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log("Poker Royale server running on port " + PORT);
+    });
+  })
+  .catch((error) => {
+    console.error("Database init failed:", error);
+    process.exit(1);
+  });
