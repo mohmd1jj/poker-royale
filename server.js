@@ -5,154 +5,257 @@ app.get("/", (req, res) => {
   res.send(`
   <!DOCTYPE html>
   <html>
-    <head>
-      <title>Poker Royale</title>
 
-      <style>
-        *{
-          margin:0;
-          padding:0;
-          box-sizing:border-box;
-        }
+  <head>
+    <title>Poker Royale</title>
 
-        body{
-          background: linear-gradient(135deg,#0f172a,#111827,#14532d);
-          min-height:100vh;
-          color:white;
-          font-family:Arial;
-          overflow-x:hidden;
-        }
+    <style>
 
-        .container{
-          max-width:1200px;
-          margin:auto;
-          padding:60px 20px;
-          text-align:center;
-        }
+      *{
+        margin:0;
+        padding:0;
+        box-sizing:border-box;
+      }
 
-        .badge{
-          display:inline-block;
-          background:#16a34a;
-          padding:10px 18px;
-          border-radius:999px;
-          font-weight:bold;
-          margin-bottom:30px;
-        }
+      body{
+        background:
+        radial-gradient(circle at top,#14532d,#0f172a 70%);
+        min-height:100vh;
+        font-family:Arial;
+        color:white;
+        overflow:hidden;
+      }
 
-        h1{
-          font-size:72px;
-          line-height:1.1;
-          margin-bottom:20px;
-        }
+      .topbar{
+        width:100%;
+        padding:20px 40px;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+      }
 
-        p{
-          color:#d1d5db;
-          font-size:20px;
-          line-height:1.8;
-          max-width:700px;
-          margin:auto;
-        }
+      .logo{
+        font-size:28px;
+        font-weight:bold;
+        color:#22c55e;
+      }
 
-        .buttons{
-          margin-top:40px;
-          display:flex;
-          justify-content:center;
-          gap:16px;
-          flex-wrap:wrap;
-        }
+      .balance{
+        background:#111827;
+        padding:12px 18px;
+        border-radius:14px;
+      }
 
-        button{
-          padding:14px 28px;
-          border:none;
-          border-radius:14px;
-          font-size:16px;
-          font-weight:bold;
-          cursor:pointer;
-        }
+      .table-wrapper{
+        width:100%;
+        display:flex;
+        justify-content:center;
+        margin-top:40px;
+      }
 
-        .primary{
-          background:#22c55e;
-          color:black;
-        }
+      .table{
+        width:900px;
+        height:500px;
+        background:#166534;
+        border:18px solid #3f2a14;
+        border-radius:300px;
+        position:relative;
+        box-shadow:0 0 60px rgba(0,0,0,0.5);
+      }
 
-        .secondary{
-          background:transparent;
-          color:white;
-          border:1px solid #4b5563;
-        }
+      .pot{
+        position:absolute;
+        top:50%;
+        left:50%;
+        transform:translate(-50%,-50%);
+        text-align:center;
+      }
 
-        .cards{
-          display:grid;
-          grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-          gap:20px;
-          margin-top:100px;
-        }
+      .pot h2{
+        color:#facc15;
+        margin-bottom:10px;
+      }
 
-        .card{
-          background:rgba(255,255,255,0.05);
-          border:1px solid rgba(255,255,255,0.1);
-          border-radius:20px;
-          padding:30px;
-          backdrop-filter:blur(8px);
-          text-align:left;
-        }
+      .cards{
+        display:flex;
+        gap:10px;
+        justify-content:center;
+      }
 
-        .card h3{
-          margin-bottom:15px;
-        }
+      .card{
+        width:70px;
+        height:100px;
+        background:white;
+        border-radius:10px;
+        color:black;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:28px;
+        font-weight:bold;
+      }
 
-      </style>
-    </head>
+      .player{
+        position:absolute;
+        width:140px;
+        text-align:center;
+      }
 
-    <body>
+      .avatar{
+        width:70px;
+        height:70px;
+        border-radius:50%;
+        background:#1f2937;
+        margin:auto;
+        border:4px solid #22c55e;
+      }
 
-      <div class="container">
+      .player-name{
+        margin-top:10px;
+        font-weight:bold;
+      }
 
-        <div class="badge">♠ Poker Royale</div>
+      .chips{
+        color:#facc15;
+        margin-top:5px;
+      }
 
-        <h1>
-          Play Smart.<br/>
-          Win Big.
-        </h1>
+      .p1{ bottom:-20px; left:50%; transform:translateX(-50%); }
+      .p2{ top:20px; left:80px; }
+      .p3{ top:20px; right:80px; }
 
-        <p>
-          Real-time Texas Hold'em experience with multiplayer poker tables,
-          live voice chat and smooth casino gameplay.
-        </p>
+      .controls{
+        position:fixed;
+        bottom:30px;
+        width:100%;
+        display:flex;
+        justify-content:center;
+        gap:20px;
+      }
 
-        <div class="buttons">
-          <button class="primary">Start Playing</button>
-          <button class="secondary">Watch Demo</button>
+      button{
+        border:none;
+        padding:16px 28px;
+        border-radius:14px;
+        font-size:16px;
+        font-weight:bold;
+        cursor:pointer;
+      }
+
+      .fold{
+        background:#ef4444;
+        color:white;
+      }
+
+      .call{
+        background:#22c55e;
+        color:black;
+      }
+
+      .raise{
+        background:#facc15;
+        color:black;
+      }
+
+      .voice{
+        position:fixed;
+        top:100px;
+        right:30px;
+        background:#111827;
+        padding:20px;
+        border-radius:20px;
+        width:220px;
+      }
+
+      .voice h3{
+        margin-bottom:15px;
+      }
+
+      .mic{
+        width:50px;
+        height:50px;
+        border-radius:50%;
+        background:#22c55e;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        margin:auto;
+        font-size:22px;
+      }
+
+    </style>
+  </head>
+
+  <body>
+
+    <div class="topbar">
+      <div class="logo">♠ Poker Royale</div>
+
+      <div class="balance">
+        Chips: $25,000
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+
+      <div class="table">
+
+        <div class="pot">
+          <h2>Pot: $3,200</h2>
+
+          <div class="cards">
+            <div class="card">A♠</div>
+            <div class="card">K♥</div>
+            <div class="card">10♣</div>
+            <div class="card">7♦</div>
+            <div class="card">Q♠</div>
+          </div>
         </div>
 
-        <div class="cards">
+        <div class="player p1">
+          <div class="avatar"></div>
+          <div class="player-name">You</div>
+          <div class="chips">$12,500</div>
+        </div>
 
-          <div class="card">
-            <h3>🎮 Multiplayer</h3>
-            <p>Join live poker rooms and challenge real players.</p>
-          </div>
+        <div class="player p2">
+          <div class="avatar"></div>
+          <div class="player-name">Alex</div>
+          <div class="chips">$9,800</div>
+        </div>
 
-          <div class="card">
-            <h3>🎤 Voice Chat</h3>
-            <p>Talk with friends during gameplay using WebRTC.</p>
-          </div>
-
-          <div class="card">
-            <h3>🏆 Ranked Tables</h3>
-            <p>Climb the leaderboard and become the poker king.</p>
-          </div>
-
+        <div class="player p3">
+          <div class="avatar"></div>
+          <div class="player-name">Daniel</div>
+          <div class="chips">$15,400</div>
         </div>
 
       </div>
 
-    </body>
+    </div>
+
+    <div class="voice">
+      <h3>🎤 Voice Chat</h3>
+
+      <div class="mic">
+        🎙️
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="fold">Fold</button>
+      <button class="call">Call</button>
+      <button class="raise">Raise</button>
+    </div>
+
+  </body>
+
   </html>
   `);
 });
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log("Poker Royale running on port " + PORT);
 });
