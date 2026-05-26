@@ -49,7 +49,13 @@ app.use((req, res, next) => {
   next();
 });
 
-const io = new Server(server);
+const io = new Server(server, {
+  path: "/rt",
+  transports: ["polling"],
+  allowUpgrades: false,
+  pingTimeout: 30000,
+  pingInterval: 25000
+});
 io.engine.use(sessionMiddleware);
 
 const DAILY_BONUS_AMOUNT = 500;
@@ -383,6 +389,11 @@ app.post("/api/reload-chips", async (req, res) => {
   }
 });
 
+
+
+app.get("/rt-health", (req, res) => {
+  res.json({ ok: true, realtime: "custom-rt", time: new Date().toISOString() });
+});
 
 app.get("/health", (req, res) => {
   res.json({ ok: true, app: "Poker Royale", time: new Date().toISOString() });
@@ -916,9 +927,9 @@ app.get("/", (req, res) => {
     <div class="main-layout"><aside class="panel"><h2>Lobby Rooms</h2><div id="rooms"></div><h2 style="margin-top:16px;">Leaderboard</h2><div id="leaderboardList" class="leaderboard-list"></div><h2 style="margin-top:16px;">Game History</h2><div id="historyList" class="history-list"></div><div class="legal-links"><a href="/terms" target="_blank">Terms</a><a href="/privacy" target="_blank">Privacy</a><a href="/health" target="_blank">Health</a></div></aside><main><div class="poker-table"><div class="table-line"></div><div class="dealer">DEALER</div><div class="community" id="communityCards"><div class="card back">\u2660</div><div class="card back">\u2665</div><div class="card back">\u2666</div><div class="card back">\u2663</div><div class="card back">\u2605</div></div><div class="pot" id="potDisplay">POT: 0</div><div class="turn-status" id="turnStatus">Login first, then choose a room</div><div class="my-cards" id="myCards"></div><div id="players"></div></div><div class="log" id="gameLog"><div class="log-item">Welcome to Poker Royale.</div></div><div class="chat-panel"><div class="chat-title"><span id="chatTitle">Room Chat</span><span id="chatRoomName">-</span></div><div class="chat-messages" id="chatMessages"><div class="chat-line chat-system">Join a room to chat.</div></div><div class="chat-form"><input class="chat-input" id="chatInput" maxlength="150" placeholder="Write a message..." /><button class="chat-send" id="chatSendBtn">Send</button></div></div><div class="voice-panel"><div class="chat-title"><span>Voice Chat</span><span id="voiceRoomName">-</span></div><div class="voice-status" id="voiceStatus">Join a room, then tap Start Voice. Works on HTTPS with microphone permission.</div><div class="voice-actions"><button class="voice-start" id="voiceStartBtn">Start Voice</button><button class="voice-mute" id="voiceMuteBtn" disabled>Mute</button><button class="voice-leave" id="voiceLeaveBtn" disabled>Leave</button></div><div id="remoteAudioContainer"></div></div></main></div>
   </div>
   <div class="actions"><button class="btn start" id="startBtn" disabled>Start</button><button class="btn fold" id="foldBtn" disabled>Fold</button><button class="btn call" id="callBtn" disabled>Call / Check</button><button class="btn raise" id="raiseBtn" disabled>Raise</button><button class="btn allin" id="allInBtn" disabled>All-in</button></div>
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="/rt/socket.io.js?v=rtfix"></script>
   <script>
-    const socket = io({ transports: ["polling"], upgrade: false, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 1000, timeout: 20000 }); let currentUser=null,currentRoomId=null,joined=false,latestRoom=null,currentLang=localStorage.getItem("pokerLang")||"en";
+    const socket = io({ path: "/rt", transports: ["polling"], upgrade: false, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 1000, timeout: 20000 }); let currentUser=null,currentRoomId=null,joined=false,latestRoom=null,currentLang=localStorage.getItem("pokerLang")||"en";
     const text={en:{langButton:"FA",loginFirst:"Login first, then choose a room",username:"Username",password:"Password",login:"Login",register:"Register",logout:"Logout",needLogin:"Please login or register first.",joined:"You joined",raiseAmount:"Raise to amount:",you:"You",bet:"Bet",committed:"Committed",pot:"POT",callCheck:"Call / Check",start:"Start",fold:"Fold",raise:"Raise",allIn:"All-in",dailyBonus:"Daily Bonus",reload:"Reload",chatTitle:"Room Chat",chatPlaceholder:"Write a message...",chatSend:"Send"},fa:{langButton:"EN",loginFirst:"\u0627\u0648\u0644 \u0648\u0627\u0631\u062F \u062D\u0633\u0627\u0628 \u0634\u0648\u060C \u0628\u0639\u062F \u0627\u062A\u0627\u0642 \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646",username:"\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC",password:"\u0631\u0645\u0632 \u0639\u0628\u0648\u0631",login:"\u0648\u0631\u0648\u062F",register:"\u062B\u0628\u062A\u200C\u0646\u0627\u0645",logout:"\u062E\u0631\u0648\u062C",needLogin:"\u0627\u0648\u0644 \u0648\u0627\u0631\u062F \u062D\u0633\u0627\u0628 \u0634\u0648 \u06CC\u0627 \u062B\u0628\u062A\u200C\u0646\u0627\u0645 \u06A9\u0646.",joined:"\u0648\u0627\u0631\u062F \u0634\u062F\u06CC \u0628\u0647",raiseAmount:"\u0627\u0641\u0632\u0627\u06CC\u0634 \u062A\u0627 \u0645\u0628\u0644\u063A:",you:"\u0634\u0645\u0627",bet:"\u0634\u0631\u0637",committed:"\u06A9\u0644 \u0634\u0631\u0637",pot:"\u067E\u0627\u062A",callCheck:"\u06A9\u0627\u0644 / \u0686\u06A9",start:"\u0634\u0631\u0648\u0639",fold:"\u0627\u0646\u0635\u0631\u0627\u0641",raise:"\u0627\u0641\u0632\u0627\u06CC\u0634",allIn:"\u0622\u0644 \u0627\u06CC\u0646",dailyBonus:"\u062C\u0627\u06CC\u0632\u0647 \u0631\u0648\u0632\u0627\u0646\u0647",reload:"\u0634\u0627\u0631\u0698 \u0686\u06CC\u067E",chatTitle:"\u0686\u062A \u0627\u062A\u0627\u0642",chatPlaceholder:"\u067E\u06CC\u0627\u0645 \u0628\u0646\u0648\u06CC\u0633...",chatSend:"\u0627\u0631\u0633\u0627\u0644"}};
     const $=id=>document.getElementById(id),toast=$("toast"),langBtn=$("langBtn"),authForm=$("authForm"),userCard=$("userCard"),authUsername=$("authUsername"),authPassword=$("authPassword"),loginBtn=$("loginBtn"),registerBtn=$("registerBtn"),logoutBtn=$("logoutBtn"),bonusBtn=$("bonusBtn"),reloadBtn=$("reloadBtn"),panelUsername=$("panelUsername"),panelChips=$("panelChips"),statsPanel=$("statsPanel"),panelWins=$("panelWins"),panelLosses=$("panelLosses"),panelHands=$("panelHands"),panelBiggestPot=$("panelBiggestPot"),panelBestHand=$("panelBestHand"),leaderboardList=$("leaderboardList"),historyList=$("historyList"),connectionStatus=$("connectionStatus"),onlineCount=$("onlineCount"),phaseStatus=$("phaseStatus"),roomsEl=$("rooms"),playersEl=$("players"),communityCardsEl=$("communityCards"),myCardsEl=$("myCards"),potDisplay=$("potDisplay"),turnStatus=$("turnStatus"),gameLog=$("gameLog"),startBtn=$("startBtn"),foldBtn=$("foldBtn"),callBtn=$("callBtn"),raiseBtn=$("raiseBtn"),allInBtn=$("allInBtn"),chatTitle=$("chatTitle"),chatRoomName=$("chatRoomName"),chatMessages=$("chatMessages"),chatInput=$("chatInput"),chatSendBtn=$("chatSendBtn"),voiceRoomName=$("voiceRoomName"),voiceStatus=$("voiceStatus"),voiceStartBtn=$("voiceStartBtn"),voiceMuteBtn=$("voiceMuteBtn"),voiceLeaveBtn=$("voiceLeaveBtn"),remoteAudioContainer=$("remoteAudioContainer");
     let localVoiceStream=null, voiceMuted=false; const voicePeers={}; const rtcConfig={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
