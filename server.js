@@ -40,8 +40,25 @@ const sessionMiddleware = session({
 app.use(express.json());
 app.use(sessionMiddleware);
 
-const io = new Server(server);
+const io = new Server(server, {
+  serveClient: true,
+  path: "/socket.io"
+});
 io.engine.use(sessionMiddleware);
+
+app.get("/socket.io/socket.io.js", (req, res) => {
+  try {
+    res.type("application/javascript; charset=utf-8");
+    res.sendFile(require.resolve("socket.io/client-dist/socket.io.js"));
+  } catch (error) {
+    console.error("Socket client file error:", error);
+    res.status(500).send("Socket.IO client file not found");
+  }
+});
+
+app.get("/health", (req, res) => {
+  res.json({ ok: true, service: "Poker Royale", time: new Date().toISOString() });
+});
 
 const DAILY_BONUS_AMOUNT = 500;
 const RELOAD_CHIPS_AMOUNT = 1000;
