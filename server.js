@@ -6,6 +6,7 @@ const { Pool } = require("pg");
 const { Server } = require("socket.io");
 
 const app = express();
+app.set("trust proxy", 1);
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 8080;
@@ -37,8 +38,16 @@ const sessionMiddleware = session({
   }
 });
 
-app.use(express.json());
+app.use(express.json({ limit: "64kb" }));
 app.use(sessionMiddleware);
+
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "same-origin");
+  res.setHeader("Permissions-Policy", "camera=(), geolocation=(), payment=()");
+  next();
+});
 
 const io = new Server(server);
 io.engine.use(sessionMiddleware);
@@ -50,6 +59,35 @@ const BONUS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const RELOAD_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const RECONNECT_GRACE_MS = 45000;
 const disconnectTimers = new Map();
+const rateLimitBuckets = new Map();
+
+function tooMany(key, limit, windowMs) {
+  const now = Date.now();
+  const bucket = rateLimitBuckets.get(key) || [];
+  const fresh = bucket.filter((time) => now - time < windowMs);
+
+  if (fresh.length >= limit) {
+    rateLimitBuckets.set(key, fresh);
+    return true;
+  }
+
+  fresh.push(now);
+  rateLimitBuckets.set(key, fresh);
+  return false;
+}
+
+function cleanUsernameInput(value) {
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9_\-.]/g, "")
+    .trim()
+    .slice(0, 32);
+}
+
+function safeInteger(value, fallback = 0) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.floor(number);
+}
 
 async function initDb() {
   await pool.query(`
@@ -206,7 +244,10 @@ async function updateUserStatsAfterHand(room, winners, bestHandsByUserId, bigges
 
 app.post("/api/register", async (req, res) => {
   try {
-    const username = String(req.body.username || "").trim().slice(0, 32);
+    if (tooMany("register:" + req.ip, 8, 15 * 60 * 1000)) {
+      return res.status(429).json({ error: "Too many register attempts. Try later." });
+    }
+    const username = cleanUsernameInput(req.body.username);
     const password = String(req.body.password || "");
 
     if (!username || username.length < 3) {
@@ -237,6 +278,9 @@ app.post("/api/register", async (req, res) => {
 
 app.post("/api/login", async (req, res) => {
   try {
+    if (tooMany("login:" + req.ip, 15, 15 * 60 * 1000)) {
+      return res.status(429).json({ error: "Too many login attempts. Try later." });
+    }
     const username = String(req.body.username || "").trim();
     const password = String(req.body.password || "");
 
@@ -284,6 +328,9 @@ app.get("/api/me", async (req, res) => {
 
 app.post("/api/daily-bonus", async (req, res) => {
   try {
+    if (tooMany("bonus:" + req.ip, 20, 60 * 1000)) {
+      return res.status(429).json({ error: "Slow down." });
+    }
     const userId = getSessionUserId(req);
     if (!userId) return res.status(401).json({ error: "Login first." });
     if (isUserInActiveHand(userId)) return res.status(400).json({ error: "You cannot claim bonus during an active hand." });
@@ -308,6 +355,9 @@ app.post("/api/daily-bonus", async (req, res) => {
 
 app.post("/api/reload-chips", async (req, res) => {
   try {
+    if (tooMany("reload:" + req.ip, 20, 60 * 1000)) {
+      return res.status(429).json({ error: "Slow down." });
+    }
     const userId = getSessionUserId(req);
     if (!userId) return res.status(401).json({ error: "Login first." });
     if (isUserInActiveHand(userId)) return res.status(400).json({ error: "You cannot reload during an active hand." });
@@ -330,6 +380,41 @@ app.post("/api/reload-chips", async (req, res) => {
   } catch (error) {
     console.error("Reload error:", error);
     res.status(500).json({ error: "Reload failed." });
+  }
+});
+
+
+app.get("/health", (req, res) => {
+  res.json({ ok: true, app: "Poker Royale", time: new Date().toISOString() });
+});
+
+app.get("/terms", (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terms - Poker Royale</title><style>body{font-family:Arial,sans-serif;background:#07150d;color:#fff;line-height:1.7;padding:24px;max-width:850px;margin:auto}a{color:#facc15}h1,h2{color:#facc15}</style></head><body><h1>Poker Royale Terms</h1><p>Poker Royale is a play-money social poker project. Chips are virtual and have no cash value. No real-money deposits, withdrawals, gambling, betting, or prizes are supported.</p><h2>Fair Use</h2><p>Do not exploit bugs, automate play, harass other players, or attempt to bypass limits.</p><h2>Account</h2><p>Keep your password private. The operator may reset rooms or accounts during testing.</p><p><a href="/">Back to game</a></p></body></html>`);
+});
+
+app.get("/privacy", (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Privacy - Poker Royale</title><style>body{font-family:Arial,sans-serif;background:#07150d;color:#fff;line-height:1.7;padding:24px;max-width:850px;margin:auto}a{color:#facc15}h1,h2{color:#facc15}</style></head><body><h1>Poker Royale Privacy</h1><p>The app stores username, password hash, virtual chips, game history, and gameplay stats in PostgreSQL. Passwords are hashed and are not stored as plain text.</p><h2>Cookies</h2><p>The app uses a session cookie to keep you logged in.</p><h2>Chat</h2><p>Room chat messages are kept temporarily in server memory and are not intended as private messages.</p><p><a href="/">Back to game</a></p></body></html>`);
+});
+
+app.get("/api/my-data", async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) return res.status(401).json({ error: "Login first." });
+    const user = await getUserById(userId);
+    const history = await pool.query(
+      `SELECT id, room_name, pot, winners, winning_hand, result_summary, created_at
+       FROM game_history
+       WHERE winner_ids LIKE $1
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      ["%" + userId + "%"]
+    );
+    res.json({ user, recent_winning_history: history.rows });
+  } catch (error) {
+    console.error("My data error:", error);
+    res.status(500).json({ error: "Failed to export data." });
   }
 });
 
@@ -815,7 +900,7 @@ app.get("/", (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Poker Royale</title>
   <style>
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} body{margin:0;min-height:100vh;font-family:Arial,sans-serif;background:radial-gradient(circle at top,#115c39 0%,#07150d 45%,#020403 100%);color:white;overflow-x:hidden;padding-bottom:calc(124px + env(safe-area-inset-bottom))} body.rtl{direction:rtl;font-family:Arial,Tahoma,sans-serif}.app{width:100%;max-width:1180px;margin:0 auto;padding:14px}.top-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}.logo{color:#facc15;font-size:28px;font-weight:900;text-shadow:0 0 20px rgba(250,204,21,.65)}.lang-btn,.small-btn,.btn{border:none;cursor:pointer;font-weight:900}.lang-btn{border:1px solid rgba(250,204,21,.45);background:rgba(0,0,0,.45);color:#facc15;border-radius:999px;padding:9px 13px}.auth-panel,.panel,.log{background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:14px;box-shadow:0 18px 55px rgba(0,0,0,.25)}.auth-panel{margin-bottom:12px}.auth-grid{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:center}.input{width:100%;border:1px solid rgba(250,204,21,.35);background:rgba(0,0,0,.45);color:white;border-radius:12px;padding:12px;outline:none;font-size:15px}.small-btn{border-radius:12px;padding:12px;color:white;background:#166534}.register-btn{background:#ca8a04;color:#111827}.logout-btn{background:#991b1b}.bonus-btn{background:#2563eb}.reload-btn{background:#7c3aed}.user-card{display:none;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.user-info strong{color:#facc15}.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}.stat-box{background:rgba(255,255,255,.06);border:1px solid rgba(250,204,21,.18);border-radius:12px;padding:8px;font-size:12px;color:#d1d5db}.stat-box strong{color:#facc15}.top-status{margin:12px auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.status-pill{background:rgba(0,0,0,.42);border:1px solid rgba(250,204,21,.28);border-radius:12px;padding:9px 8px;font-size:12px;color:#d1d5db}.status-pill strong{color:#facc15}.main-layout{display:grid;grid-template-columns:285px 1fr;gap:14px;align-items:start}.panel h2{margin:0 0 10px;color:#facc15;font-size:17px}.room-card{border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.035));border-radius:16px;padding:12px;margin-bottom:10px;cursor:pointer}.room-card.active{border-color:#facc15;background:rgba(250,204,21,.12)}.room-title{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;margin-bottom:6px}.room-badge{font-size:10px;border-radius:999px;padding:3px 7px;background:#166534;color:#bbf7d0}.room-badge.playing{background:#7c2d12;color:#fed7aa}.room-meta{color:#d1d5db;font-size:12px;line-height:1.55}.join-pill{margin-top:8px;background:#facc15;color:#111827;text-align:center;border-radius:999px;padding:7px;font-weight:900;font-size:12px}.leaderboard-list,.history-list{display:grid;gap:8px;font-size:12px;color:#d1d5db}.list-item{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px;line-height:1.45}.poker-table{position:relative;min-height:565px;border-radius:48%;background:radial-gradient(circle at center,#15803d 0%,#166534 45%,#052e16 100%);border:12px solid #7c2d12;box-shadow:inset 0 0 48px rgba(0,0,0,.56),0 25px 70px rgba(0,0,0,.55);overflow:hidden}.table-line{position:absolute;inset:32px;border-radius:48%;border:2px dashed rgba(250,204,21,.32);pointer-events:none}.dealer{position:absolute;top:38px;left:50%;transform:translateX(-50%);background:#facc15;color:#111827;padding:7px 14px;border-radius:999px;font-weight:900;font-size:13px;z-index:7}.community{position:absolute;top:178px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:8}.card{width:52px;height:74px;background:#fff;color:#111827;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;box-shadow:0 12px 22px rgba(0,0,0,.38)}.card.red{color:#dc2626}.card.back{background:linear-gradient(135deg,#991b1b,#450a0a);color:#facc15;border:2px solid rgba(250,204,21,.8)}.pot{position:absolute;top:276px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.58);border:1px solid rgba(250,204,21,.55);border-radius:18px;padding:10px 18px;color:#facc15;font-weight:900;z-index:8}.turn-status{position:absolute;top:334px;left:50%;transform:translateX(-50%);background:rgba(2,6,23,.72);border:1px solid rgba(34,197,94,.5);border-radius:14px;padding:10px 14px;min-width:240px;color:#bbf7d0;text-align:center;font-size:13px;z-index:8}.my-cards{position:absolute;bottom:105px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:12}.player{position:absolute;width:118px;text-align:center;z-index:10}.avatar{width:58px;height:58px;margin:0 auto 5px;border-radius:50%;background:radial-gradient(circle at top,#facc15,#a16207);border:3px solid #fff7ed;color:#111827;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:21px}.player.turn .avatar{box-shadow:0 0 0 4px rgba(34,197,94,.55),0 0 24px rgba(34,197,94,.65)}.player.folded{opacity:.45}.player-name{background:rgba(0,0,0,.7);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.role-badge{display:inline-block;margin-top:3px;background:#facc15;color:#111827;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:900}.danger-badge{background:#ef4444;color:white}.chips{margin-top:4px;color:#facc15;font-size:12px}.bet{margin-top:2px;color:#93c5fd;font-size:11px}.seat-0{left:50%;bottom:24px;transform:translateX(-50%)}.seat-1{left:48px;bottom:115px}.seat-2{left:48px;top:100px}.seat-3{right:48px;top:100px}.seat-4{right:48px;bottom:115px}.seat-5{left:50%;top:72px;transform:translateX(-50%)}.actions{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:2000;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;width:min(96%,620px);background:rgba(0,0,0,.55);border:1px solid rgba(250,204,21,.25);border-radius:22px;padding:10px;backdrop-filter:blur(10px)}.btn{border-radius:999px;padding:12px 14px;min-width:78px;color:white;font-size:13px}.btn:disabled{opacity:.42;cursor:not-allowed}.fold{background:#991b1b}.call{background:#166534}.raise{background:#ca8a04;color:#111827}.allin{background:#7c3aed}.start{background:#2563eb}.log{margin-top:14px;font-size:13px;color:#d1d5db;max-height:170px;overflow-y:auto;line-height:1.55}.log-item{border-bottom:1px solid rgba(255,255,255,.08);padding:5px 0}.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(2,6,23,.92);border:1px solid rgba(250,204,21,.35);color:#fff;border-radius:999px;padding:11px 16px;font-weight:900;font-size:13px;box-shadow:0 18px 55px rgba(0,0,0,.4);display:none}.toast.show{display:block}.chat-panel{margin-top:14px;background:rgba(0,0,0,.46);border:1px solid rgba(250,204,21,.18);border-radius:18px;padding:12px}.chat-title{display:flex;justify-content:space-between;align-items:center;color:#facc15;font-weight:900;margin-bottom:8px}.chat-messages{height:160px;overflow-y:auto;background:rgba(2,6,23,.35);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:9px;display:flex;flex-direction:column;gap:7px}.chat-line{font-size:12px;line-height:1.45;color:#e5e7eb;word-break:break-word}.chat-line strong{color:#facc15}.chat-time{color:#9ca3af;font-size:10px;margin-inline-start:4px}.chat-system{color:#bbf7d0;font-style:italic}.chat-form{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}.chat-input{border:1px solid rgba(250,204,21,.35);background:rgba(0,0,0,.45);color:white;border-radius:999px;padding:11px 13px;outline:none}.chat-send{border:none;border-radius:999px;background:#facc15;color:#111827;font-weight:900;padding:0 16px;cursor:pointer}@media(max-width:850px){.auth-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr 1fr}.main-layout{grid-template-columns:1fr}.top-status{grid-template-columns:1fr}.logo{font-size:24px}.poker-table{min-height:520px;border-width:8px}.community{top:174px;gap:6px}.card{width:43px;height:62px;font-size:17px}.pot{top:256px}.turn-status{top:310px;min-width:215px}.my-cards{bottom:98px}.player{width:100px}.avatar{width:50px;height:50px}.seat-0{left:50%;bottom:22px;transform:translateX(-50%)}.seat-1{left:10px;bottom:112px}.seat-2{left:10px;top:108px}.seat-3{right:10px;top:108px}.seat-4{right:10px;bottom:112px}.seat-5{left:50%;top:66px;transform:translateX(-50%)}.btn{min-width:68px;padding:10px 10px;font-size:12px}}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} body{margin:0;min-height:100vh;font-family:Arial,sans-serif;background:radial-gradient(circle at top,#115c39 0%,#07150d 45%,#020403 100%);color:white;overflow-x:hidden;padding-bottom:calc(124px + env(safe-area-inset-bottom))} body.rtl{direction:rtl;font-family:Arial,Tahoma,sans-serif}.app{width:100%;max-width:1180px;margin:0 auto;padding:14px}.top-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}.logo{color:#facc15;font-size:28px;font-weight:900;text-shadow:0 0 20px rgba(250,204,21,.65)}.lang-btn,.small-btn,.btn{border:none;cursor:pointer;font-weight:900}.lang-btn{border:1px solid rgba(250,204,21,.45);background:rgba(0,0,0,.45);color:#facc15;border-radius:999px;padding:9px 13px}.auth-panel,.panel,.log{background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:14px;box-shadow:0 18px 55px rgba(0,0,0,.25)}.auth-panel{margin-bottom:12px}.auth-grid{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:center}.input{width:100%;border:1px solid rgba(250,204,21,.35);background:rgba(0,0,0,.45);color:white;border-radius:12px;padding:12px;outline:none;font-size:15px}.small-btn{border-radius:12px;padding:12px;color:white;background:#166534}.register-btn{background:#ca8a04;color:#111827}.logout-btn{background:#991b1b}.bonus-btn{background:#2563eb}.reload-btn{background:#7c3aed}.user-card{display:none;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.user-info strong{color:#facc15}.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}.stat-box{background:rgba(255,255,255,.06);border:1px solid rgba(250,204,21,.18);border-radius:12px;padding:8px;font-size:12px;color:#d1d5db}.stat-box strong{color:#facc15}.top-status{margin:12px auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.status-pill{background:rgba(0,0,0,.42);border:1px solid rgba(250,204,21,.28);border-radius:12px;padding:9px 8px;font-size:12px;color:#d1d5db}.status-pill strong{color:#facc15}.main-layout{display:grid;grid-template-columns:285px 1fr;gap:14px;align-items:start}.panel h2{margin:0 0 10px;color:#facc15;font-size:17px}.room-card{border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.035));border-radius:16px;padding:12px;margin-bottom:10px;cursor:pointer}.room-card.active{border-color:#facc15;background:rgba(250,204,21,.12)}.room-title{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;margin-bottom:6px}.room-badge{font-size:10px;border-radius:999px;padding:3px 7px;background:#166534;color:#bbf7d0}.room-badge.playing{background:#7c2d12;color:#fed7aa}.room-meta{color:#d1d5db;font-size:12px;line-height:1.55}.join-pill{margin-top:8px;background:#facc15;color:#111827;text-align:center;border-radius:999px;padding:7px;font-weight:900;font-size:12px}.leaderboard-list,.history-list{display:grid;gap:8px;font-size:12px;color:#d1d5db}.list-item{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px;line-height:1.45}.poker-table{position:relative;min-height:565px;border-radius:48%;background:radial-gradient(circle at center,#15803d 0%,#166534 45%,#052e16 100%);border:12px solid #7c2d12;box-shadow:inset 0 0 48px rgba(0,0,0,.56),0 25px 70px rgba(0,0,0,.55);overflow:hidden}.table-line{position:absolute;inset:32px;border-radius:48%;border:2px dashed rgba(250,204,21,.32);pointer-events:none}.dealer{position:absolute;top:38px;left:50%;transform:translateX(-50%);background:#facc15;color:#111827;padding:7px 14px;border-radius:999px;font-weight:900;font-size:13px;z-index:7}.community{position:absolute;top:178px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:8}.card{width:52px;height:74px;background:#fff;color:#111827;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;box-shadow:0 12px 22px rgba(0,0,0,.38)}.card.red{color:#dc2626}.card.back{background:linear-gradient(135deg,#991b1b,#450a0a);color:#facc15;border:2px solid rgba(250,204,21,.8)}.pot{position:absolute;top:276px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.58);border:1px solid rgba(250,204,21,.55);border-radius:18px;padding:10px 18px;color:#facc15;font-weight:900;z-index:8}.turn-status{position:absolute;top:334px;left:50%;transform:translateX(-50%);background:rgba(2,6,23,.72);border:1px solid rgba(34,197,94,.5);border-radius:14px;padding:10px 14px;min-width:240px;color:#bbf7d0;text-align:center;font-size:13px;z-index:8}.my-cards{position:absolute;bottom:105px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:12}.player{position:absolute;width:118px;text-align:center;z-index:10}.avatar{width:58px;height:58px;margin:0 auto 5px;border-radius:50%;background:radial-gradient(circle at top,#facc15,#a16207);border:3px solid #fff7ed;color:#111827;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:21px}.player.turn .avatar{box-shadow:0 0 0 4px rgba(34,197,94,.55),0 0 24px rgba(34,197,94,.65)}.player.folded{opacity:.45}.player-name{background:rgba(0,0,0,.7);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.role-badge{display:inline-block;margin-top:3px;background:#facc15;color:#111827;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:900}.danger-badge{background:#ef4444;color:white}.chips{margin-top:4px;color:#facc15;font-size:12px}.bet{margin-top:2px;color:#93c5fd;font-size:11px}.seat-0{left:50%;bottom:24px;transform:translateX(-50%)}.seat-1{left:48px;bottom:115px}.seat-2{left:48px;top:100px}.seat-3{right:48px;top:100px}.seat-4{right:48px;bottom:115px}.seat-5{left:50%;top:72px;transform:translateX(-50%)}.actions{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:2000;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;width:min(96%,620px);background:rgba(0,0,0,.55);border:1px solid rgba(250,204,21,.25);border-radius:22px;padding:10px;backdrop-filter:blur(10px)}.btn{border-radius:999px;padding:12px 14px;min-width:78px;color:white;font-size:13px}.btn:disabled{opacity:.42;cursor:not-allowed}.fold{background:#991b1b}.call{background:#166534}.raise{background:#ca8a04;color:#111827}.allin{background:#7c3aed}.start{background:#2563eb}.log{margin-top:14px;font-size:13px;color:#d1d5db;max-height:170px;overflow-y:auto;line-height:1.55}.log-item{border-bottom:1px solid rgba(255,255,255,.08);padding:5px 0}.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(2,6,23,.92);border:1px solid rgba(250,204,21,.35);color:#fff;border-radius:999px;padding:11px 16px;font-weight:900;font-size:13px;box-shadow:0 18px 55px rgba(0,0,0,.4);display:none}.toast.show{display:block}.voice-panel,.chat-panel{margin-top:14px;background:rgba(0,0,0,.46);border:1px solid rgba(250,204,21,.18);border-radius:18px;padding:12px}.chat-title{display:flex;justify-content:space-between;align-items:center;color:#facc15;font-weight:900;margin-bottom:8px}.chat-messages{height:160px;overflow-y:auto;background:rgba(2,6,23,.35);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:9px;display:flex;flex-direction:column;gap:7px}.chat-line{font-size:12px;line-height:1.45;color:#e5e7eb;word-break:break-word}.chat-line strong{color:#facc15}.chat-time{color:#9ca3af;font-size:10px;margin-inline-start:4px}.chat-system{color:#bbf7d0;font-style:italic}.chat-form{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}.chat-input{border:1px solid rgba(250,204,21,.35);background:rgba(0,0,0,.45);color:white;border-radius:999px;padding:11px 13px;outline:none}.chat-send{border:none;border-radius:999px;background:#facc15;color:#111827;font-weight:900;padding:0 16px;cursor:pointer}.voice-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.voice-actions button{border:none;border-radius:999px;padding:10px 12px;font-weight:900;cursor:pointer}.voice-start{background:#22c55e;color:#052e16}.voice-mute{background:#facc15;color:#111827}.voice-leave{background:#991b1b;color:#fff}.voice-status{font-size:12px;color:#d1d5db;line-height:1.5}.legal-links{margin-top:10px;font-size:12px;display:flex;gap:8px;flex-wrap:wrap}.legal-links a{color:#facc15;text-decoration:none}@media(max-width:850px){.auth-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr 1fr}.main-layout{grid-template-columns:1fr}.top-status{grid-template-columns:1fr}.logo{font-size:24px}.poker-table{min-height:520px;border-width:8px}.community{top:174px;gap:6px}.card{width:43px;height:62px;font-size:17px}.pot{top:256px}.turn-status{top:310px;min-width:215px}.my-cards{bottom:98px}.player{width:100px}.avatar{width:50px;height:50px}.seat-0{left:50%;bottom:22px;transform:translateX(-50%)}.seat-1{left:10px;bottom:112px}.seat-2{left:10px;top:108px}.seat-3{right:10px;top:108px}.seat-4{right:10px;bottom:112px}.seat-5{left:50%;top:66px;transform:translateX(-50%)}.btn{min-width:68px;padding:10px 10px;font-size:12px}}
   </style>
 </head>
 <body>
@@ -828,14 +913,15 @@ app.get("/", (req, res) => {
       <div id="statsPanel" class="stats-grid" style="display:none;"><div class="stat-box">Wins<br><strong id="panelWins">0</strong></div><div class="stat-box">Losses<br><strong id="panelLosses">0</strong></div><div class="stat-box">Hands<br><strong id="panelHands">0</strong></div><div class="stat-box">Biggest Pot<br><strong id="panelBiggestPot">0</strong></div><div class="stat-box">Best Hand<br><strong id="panelBestHand">None</strong></div></div>
     </div>
     <div class="top-status"><div class="status-pill">Connection: <strong id="connectionStatus">Connecting...</strong></div><div class="status-pill">Online: <strong id="onlineCount">0</strong></div><div class="status-pill">Phase: <strong id="phaseStatus">waiting</strong></div></div>
-    <div class="main-layout"><aside class="panel"><h2>Lobby Rooms</h2><div id="rooms"></div><h2 style="margin-top:16px;">Leaderboard</h2><div id="leaderboardList" class="leaderboard-list"></div><h2 style="margin-top:16px;">Game History</h2><div id="historyList" class="history-list"></div></aside><main><div class="poker-table"><div class="table-line"></div><div class="dealer">DEALER</div><div class="community" id="communityCards"><div class="card back">\u2660</div><div class="card back">\u2665</div><div class="card back">\u2666</div><div class="card back">\u2663</div><div class="card back">\u2605</div></div><div class="pot" id="potDisplay">POT: 0</div><div class="turn-status" id="turnStatus">Login first, then choose a room</div><div class="my-cards" id="myCards"></div><div id="players"></div></div><div class="log" id="gameLog"><div class="log-item">Welcome to Poker Royale.</div></div><div class="chat-panel"><div class="chat-title"><span id="chatTitle">Room Chat</span><span id="chatRoomName">-</span></div><div class="chat-messages" id="chatMessages"><div class="chat-line chat-system">Join a room to chat.</div></div><div class="chat-form"><input class="chat-input" id="chatInput" maxlength="150" placeholder="Write a message..." /><button class="chat-send" id="chatSendBtn">Send</button></div></div></main></div>
+    <div class="main-layout"><aside class="panel"><h2>Lobby Rooms</h2><div id="rooms"></div><h2 style="margin-top:16px;">Leaderboard</h2><div id="leaderboardList" class="leaderboard-list"></div><h2 style="margin-top:16px;">Game History</h2><div id="historyList" class="history-list"></div><div class="legal-links"><a href="/terms" target="_blank">Terms</a><a href="/privacy" target="_blank">Privacy</a><a href="/health" target="_blank">Health</a></div></aside><main><div class="poker-table"><div class="table-line"></div><div class="dealer">DEALER</div><div class="community" id="communityCards"><div class="card back">\u2660</div><div class="card back">\u2665</div><div class="card back">\u2666</div><div class="card back">\u2663</div><div class="card back">\u2605</div></div><div class="pot" id="potDisplay">POT: 0</div><div class="turn-status" id="turnStatus">Login first, then choose a room</div><div class="my-cards" id="myCards"></div><div id="players"></div></div><div class="log" id="gameLog"><div class="log-item">Welcome to Poker Royale.</div></div><div class="chat-panel"><div class="chat-title"><span id="chatTitle">Room Chat</span><span id="chatRoomName">-</span></div><div class="chat-messages" id="chatMessages"><div class="chat-line chat-system">Join a room to chat.</div></div><div class="chat-form"><input class="chat-input" id="chatInput" maxlength="150" placeholder="Write a message..." /><button class="chat-send" id="chatSendBtn">Send</button></div></div><div class="voice-panel"><div class="chat-title"><span>Voice Chat</span><span id="voiceRoomName">-</span></div><div class="voice-status" id="voiceStatus">Join a room, then tap Start Voice. Works on HTTPS with microphone permission.</div><div class="voice-actions"><button class="voice-start" id="voiceStartBtn">Start Voice</button><button class="voice-mute" id="voiceMuteBtn" disabled>Mute</button><button class="voice-leave" id="voiceLeaveBtn" disabled>Leave</button></div><div id="remoteAudioContainer"></div></div></main></div>
   </div>
   <div class="actions"><button class="btn start" id="startBtn" disabled>Start</button><button class="btn fold" id="foldBtn" disabled>Fold</button><button class="btn call" id="callBtn" disabled>Call / Check</button><button class="btn raise" id="raiseBtn" disabled>Raise</button><button class="btn allin" id="allInBtn" disabled>All-in</button></div>
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io(); let currentUser=null,currentRoomId=null,joined=false,latestRoom=null,currentLang=localStorage.getItem("pokerLang")||"en";
     const text={en:{langButton:"FA",loginFirst:"Login first, then choose a room",username:"Username",password:"Password",login:"Login",register:"Register",logout:"Logout",needLogin:"Please login or register first.",joined:"You joined",raiseAmount:"Raise to amount:",you:"You",bet:"Bet",committed:"Committed",pot:"POT",callCheck:"Call / Check",start:"Start",fold:"Fold",raise:"Raise",allIn:"All-in",dailyBonus:"Daily Bonus",reload:"Reload",chatTitle:"Room Chat",chatPlaceholder:"Write a message...",chatSend:"Send"},fa:{langButton:"EN",loginFirst:"\u0627\u0648\u0644 \u0648\u0627\u0631\u062F \u062D\u0633\u0627\u0628 \u0634\u0648\u060C \u0628\u0639\u062F \u0627\u062A\u0627\u0642 \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646",username:"\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC",password:"\u0631\u0645\u0632 \u0639\u0628\u0648\u0631",login:"\u0648\u0631\u0648\u062F",register:"\u062B\u0628\u062A\u200C\u0646\u0627\u0645",logout:"\u062E\u0631\u0648\u062C",needLogin:"\u0627\u0648\u0644 \u0648\u0627\u0631\u062F \u062D\u0633\u0627\u0628 \u0634\u0648 \u06CC\u0627 \u062B\u0628\u062A\u200C\u0646\u0627\u0645 \u06A9\u0646.",joined:"\u0648\u0627\u0631\u062F \u0634\u062F\u06CC \u0628\u0647",raiseAmount:"\u0627\u0641\u0632\u0627\u06CC\u0634 \u062A\u0627 \u0645\u0628\u0644\u063A:",you:"\u0634\u0645\u0627",bet:"\u0634\u0631\u0637",committed:"\u06A9\u0644 \u0634\u0631\u0637",pot:"\u067E\u0627\u062A",callCheck:"\u06A9\u0627\u0644 / \u0686\u06A9",start:"\u0634\u0631\u0648\u0639",fold:"\u0627\u0646\u0635\u0631\u0627\u0641",raise:"\u0627\u0641\u0632\u0627\u06CC\u0634",allIn:"\u0622\u0644 \u0627\u06CC\u0646",dailyBonus:"\u062C\u0627\u06CC\u0632\u0647 \u0631\u0648\u0632\u0627\u0646\u0647",reload:"\u0634\u0627\u0631\u0698 \u0686\u06CC\u067E",chatTitle:"\u0686\u062A \u0627\u062A\u0627\u0642",chatPlaceholder:"\u067E\u06CC\u0627\u0645 \u0628\u0646\u0648\u06CC\u0633...",chatSend:"\u0627\u0631\u0633\u0627\u0644"}};
-    const $=id=>document.getElementById(id),toast=$("toast"),langBtn=$("langBtn"),authForm=$("authForm"),userCard=$("userCard"),authUsername=$("authUsername"),authPassword=$("authPassword"),loginBtn=$("loginBtn"),registerBtn=$("registerBtn"),logoutBtn=$("logoutBtn"),bonusBtn=$("bonusBtn"),reloadBtn=$("reloadBtn"),panelUsername=$("panelUsername"),panelChips=$("panelChips"),statsPanel=$("statsPanel"),panelWins=$("panelWins"),panelLosses=$("panelLosses"),panelHands=$("panelHands"),panelBiggestPot=$("panelBiggestPot"),panelBestHand=$("panelBestHand"),leaderboardList=$("leaderboardList"),historyList=$("historyList"),connectionStatus=$("connectionStatus"),onlineCount=$("onlineCount"),phaseStatus=$("phaseStatus"),roomsEl=$("rooms"),playersEl=$("players"),communityCardsEl=$("communityCards"),myCardsEl=$("myCards"),potDisplay=$("potDisplay"),turnStatus=$("turnStatus"),gameLog=$("gameLog"),startBtn=$("startBtn"),foldBtn=$("foldBtn"),callBtn=$("callBtn"),raiseBtn=$("raiseBtn"),allInBtn=$("allInBtn"),chatTitle=$("chatTitle"),chatRoomName=$("chatRoomName"),chatMessages=$("chatMessages"),chatInput=$("chatInput"),chatSendBtn=$("chatSendBtn");
+    const $=id=>document.getElementById(id),toast=$("toast"),langBtn=$("langBtn"),authForm=$("authForm"),userCard=$("userCard"),authUsername=$("authUsername"),authPassword=$("authPassword"),loginBtn=$("loginBtn"),registerBtn=$("registerBtn"),logoutBtn=$("logoutBtn"),bonusBtn=$("bonusBtn"),reloadBtn=$("reloadBtn"),panelUsername=$("panelUsername"),panelChips=$("panelChips"),statsPanel=$("statsPanel"),panelWins=$("panelWins"),panelLosses=$("panelLosses"),panelHands=$("panelHands"),panelBiggestPot=$("panelBiggestPot"),panelBestHand=$("panelBestHand"),leaderboardList=$("leaderboardList"),historyList=$("historyList"),connectionStatus=$("connectionStatus"),onlineCount=$("onlineCount"),phaseStatus=$("phaseStatus"),roomsEl=$("rooms"),playersEl=$("players"),communityCardsEl=$("communityCards"),myCardsEl=$("myCards"),potDisplay=$("potDisplay"),turnStatus=$("turnStatus"),gameLog=$("gameLog"),startBtn=$("startBtn"),foldBtn=$("foldBtn"),callBtn=$("callBtn"),raiseBtn=$("raiseBtn"),allInBtn=$("allInBtn"),chatTitle=$("chatTitle"),chatRoomName=$("chatRoomName"),chatMessages=$("chatMessages"),chatInput=$("chatInput"),chatSendBtn=$("chatSendBtn"),voiceRoomName=$("voiceRoomName"),voiceStatus=$("voiceStatus"),voiceStartBtn=$("voiceStartBtn"),voiceMuteBtn=$("voiceMuteBtn"),voiceLeaveBtn=$("voiceLeaveBtn"),remoteAudioContainer=$("remoteAudioContainer");
+    let localVoiceStream=null, voiceMuted=false; const voicePeers={}; const rtcConfig={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
     function tr(){return text[currentLang]} function showToast(m){toast.textContent=m;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),2800)}
     function applyLanguage(){document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==="fa"?"rtl":"ltr";document.body.classList.toggle("rtl",currentLang==="fa");langBtn.textContent=tr().langButton;authUsername.placeholder=tr().username;authPassword.placeholder=tr().password;loginBtn.textContent=tr().login;registerBtn.textContent=tr().register;logoutBtn.textContent=tr().logout;bonusBtn.textContent=tr().dailyBonus;reloadBtn.textContent=tr().reload;startBtn.textContent=tr().start;foldBtn.textContent=tr().fold;callBtn.textContent=tr().callCheck;raiseBtn.textContent=tr().raise;allInBtn.textContent=tr().allIn;chatTitle.textContent=tr().chatTitle;chatInput.placeholder=tr().chatPlaceholder;chatSendBtn.textContent=tr().chatSend;if(!joined)turnStatus.textContent=tr().loginFirst;if(latestRoom){updateTableText(latestRoom);renderPlayers(latestRoom.players)}}
     langBtn.onclick=()=>{currentLang=currentLang==="en"?"fa":"en";localStorage.setItem("pokerLang",currentLang);applyLanguage()};
@@ -851,7 +937,7 @@ app.get("/", (req, res) => {
     async function refreshDashboard(){await loadLeaderboard();await loadHistory()}
     loginBtn.onclick=async()=>{try{const data=await api("/api/login",{username:authUsername.value,password:authPassword.value});currentUser=data.user;updateUserPanel();addLog("Logged in as "+currentUser.username);showToast("Logged in");refreshDashboard().catch(()=>{})}catch(e){showToast(e.message)}};
     registerBtn.onclick=async()=>{try{const data=await api("/api/register",{username:authUsername.value,password:authPassword.value});currentUser=data.user;updateUserPanel();addLog("Registered as "+currentUser.username);showToast("Registered");refreshDashboard().catch(()=>{})}catch(e){showToast(e.message)}};
-    logoutBtn.onclick=async()=>{await api("/api/logout",{});currentUser=null;joined=false;currentRoomId=null;latestRoom=null;updateUserPanel();updateButtons(null);playersEl.innerHTML="";myCardsEl.innerHTML="";turnStatus.textContent=tr().loginFirst;chatRoomName.textContent="-";renderChatMessages([]);addLog("Logged out.");showToast("Logged out")};
+    logoutBtn.onclick=async()=>{await api("/api/logout",{});currentUser=null;joined=false;currentRoomId=null;latestRoom=null;updateUserPanel();updateButtons(null);playersEl.innerHTML="";myCardsEl.innerHTML="";turnStatus.textContent=tr().loginFirst;chatRoomName.textContent="-";renderChatMessages([]);leaveVoice().catch(()=>{});addLog("Logged out.");showToast("Logged out")};
     bonusBtn.onclick=async()=>{try{const data=await api("/api/daily-bonus",{});addLog(data.message);showToast(data.message);await loadMe();await refreshDashboard()}catch(e){showToast(e.message)}};
     reloadBtn.onclick=async()=>{try{const data=await api("/api/reload-chips",{});addLog(data.message);showToast(data.message);await loadMe();await refreshDashboard()}catch(e){showToast(e.message)}};
     function cardIsRed(card){return card.includes("\u2665")||card.includes("\u2666")} function renderCard(card){if(!card)return '<div class="card back">\u2605</div>';return '<div class="card'+(cardIsRed(card)?" red":"")+'">'+card+'</div>'}
@@ -862,9 +948,51 @@ app.get("/", (req, res) => {
     function updateTableText(room){potDisplay.textContent=tr().pot+": "+room.pot;turnStatus.textContent=room.status;phaseStatus.textContent=room.phase}
     function updateButtons(room){startBtn.disabled=!joined;if(!room||!joined||!currentUser){foldBtn.disabled=callBtn.disabled=raiseBtn.disabled=allInBtn.disabled=true;return}const me=room.players.find(player=>player.userId===currentUser.id);const isMyTurn=me&&me.isTurn&&!me.folded&&!me.allIn&&!me.disconnected&&!me.waitingNextHand&&room.phase!=="waiting"&&room.phase!=="showdown";foldBtn.disabled=callBtn.disabled=raiseBtn.disabled=allInBtn.disabled=!isMyTurn}
     socket.on("connect",()=>{connectionStatus.textContent="Connected";connectionStatus.style.color="#22c55e";addLog("Connected.")}); socket.on("disconnect",()=>{connectionStatus.textContent="Disconnected";connectionStatus.style.color="#ef4444";updateButtons(null)}); socket.on("onlineCount",count=>onlineCount.textContent=count); socket.on("roomsUpdate",rooms=>renderRooms(rooms));
-    socket.on("roomJoined",room=>{joined=true;latestRoom=room;currentRoomId=room.id;updateTableText(room);renderPlayers(room.players);renderCommunity(room.communityCards);updateButtons(room);addLog(tr().joined+" "+room.name);chatRoomName.textContent=room.name;renderChatMessages(room.chatMessages||[]);showToast(tr().joined+" "+room.name)});
+    socket.on("roomJoined",room=>{joined=true;latestRoom=room;currentRoomId=room.id;updateTableText(room);renderPlayers(room.players);renderCommunity(room.communityCards);updateButtons(room);addLog(tr().joined+" "+room.name);chatRoomName.textContent=room.name;voiceRoomName.textContent=room.name;renderChatMessages(room.chatMessages||[]);showToast(tr().joined+" "+room.name)});
     socket.on("roomState",room=>{if(!currentRoomId||room.id!==currentRoomId)return;latestRoom=room;updateTableText(room);renderPlayers(room.players);renderCommunity(room.communityCards);renderChatMessages(room.chatMessages||[]);updateButtons(room)}); socket.on("privateCards",cards=>renderMyCards(cards)); socket.on("gameMessage",async message=>{addLog(message);showToast(message);try{await loadMe();await refreshDashboard()}catch(e){}}); socket.on("chatMessage",message=>{appendChatMessage(message)});
     function sendChat(){if(!joined||!currentRoomId){showToast("Join a room first.");return}const message=chatInput.value.trim();if(!message)return;socket.emit("roomChatMessage",{roomId:currentRoomId,message});chatInput.value=""} chatSendBtn.onclick=sendChat; chatInput.addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});
+
+    async function startVoice(){
+      if(!joined||!currentRoomId){showToast("Join a room first.");return}
+      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){showToast("Voice is not supported in this browser.");return}
+      try{
+        localVoiceStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+        voiceStatus.textContent="Voice connected. Waiting for peers...";
+        voiceStartBtn.disabled=true; voiceMuteBtn.disabled=false; voiceLeaveBtn.disabled=false;
+        voiceRoomName.textContent=latestRoom?latestRoom.name:currentRoomId;
+        socket.emit("voiceJoin",{roomId:currentRoomId});
+      }catch(e){showToast("Microphone permission denied or unavailable.")}
+    }
+    function makePeer(targetSocketId,initiator){
+      const pc=new RTCPeerConnection(rtcConfig);
+      voicePeers[targetSocketId]=pc;
+      if(localVoiceStream)localVoiceStream.getTracks().forEach(track=>pc.addTrack(track,localVoiceStream));
+      pc.onicecandidate=e=>{if(e.candidate)socket.emit("voiceIceCandidate",{roomId:currentRoomId,targetSocketId,candidate:e.candidate})};
+      pc.ontrack=e=>{
+        let audio=document.getElementById("voice-audio-"+targetSocketId);
+        if(!audio){audio=document.createElement("audio");audio.id="voice-audio-"+targetSocketId;audio.autoplay=true;audio.playsInline=true;remoteAudioContainer.appendChild(audio)}
+        audio.srcObject=e.streams[0];
+      };
+      if(initiator){pc.onnegotiationneeded=async()=>{try{const offer=await pc.createOffer();await pc.setLocalDescription(offer);socket.emit("voiceOffer",{roomId:currentRoomId,targetSocketId,offer})}catch(e){}}}
+      return pc;
+    }
+    async function leaveVoice(){
+      Object.keys(voicePeers).forEach(id=>{try{voicePeers[id].close()}catch(e){} delete voicePeers[id]});
+      if(localVoiceStream){localVoiceStream.getTracks().forEach(t=>t.stop());localVoiceStream=null}
+      remoteAudioContainer.innerHTML="";
+      voiceStartBtn.disabled=false; voiceMuteBtn.disabled=true; voiceLeaveBtn.disabled=true; voiceMuted=false; voiceMuteBtn.textContent="Mute";
+      voiceStatus.textContent="Voice disconnected.";
+      if(currentRoomId)socket.emit("voiceLeave",{roomId:currentRoomId});
+    }
+    voiceStartBtn.onclick=startVoice;
+    voiceLeaveBtn.onclick=leaveVoice;
+    voiceMuteBtn.onclick=()=>{if(!localVoiceStream)return;voiceMuted=!voiceMuted;localVoiceStream.getAudioTracks().forEach(t=>t.enabled=!voiceMuted);voiceMuteBtn.textContent=voiceMuted?"Unmute":"Mute"};
+    socket.on("voicePeerJoined",async ({socketId,name})=>{if(!localVoiceStream||socketId===socket.id)return;voiceStatus.textContent=(name||"A player")+" joined voice.";makePeer(socketId,true)});
+    socket.on("voiceOffer",async ({fromSocketId,offer})=>{if(!localVoiceStream)return;const pc=voicePeers[fromSocketId]||makePeer(fromSocketId,false);await pc.setRemoteDescription(new RTCSessionDescription(offer));const answer=await pc.createAnswer();await pc.setLocalDescription(answer);socket.emit("voiceAnswer",{roomId:currentRoomId,targetSocketId:fromSocketId,answer})});
+    socket.on("voiceAnswer",async ({fromSocketId,answer})=>{const pc=voicePeers[fromSocketId];if(pc)await pc.setRemoteDescription(new RTCSessionDescription(answer))});
+    socket.on("voiceIceCandidate",async ({fromSocketId,candidate})=>{const pc=voicePeers[fromSocketId];if(pc&&candidate)try{await pc.addIceCandidate(new RTCIceCandidate(candidate))}catch(e){}});
+    socket.on("voicePeerLeft",({socketId})=>{const pc=voicePeers[socketId];if(pc){pc.close();delete voicePeers[socketId]}const audio=document.getElementById("voice-audio-"+socketId);if(audio)audio.remove()});
+
     startBtn.onclick=()=>{if(!joined||!currentRoomId)return;socket.emit("startHand",{roomId:currentRoomId})}; foldBtn.onclick=()=>{if(!joined||!currentRoomId)return;socket.emit("playerAction",{roomId:currentRoomId,action:"Fold"})}; callBtn.onclick=()=>{if(!joined||!currentRoomId)return;socket.emit("playerAction",{roomId:currentRoomId,action:"Call"})}; raiseBtn.onclick=()=>{if(!joined||!currentRoomId)return;const amount=prompt(tr().raiseAmount,"50");if(!amount)return;socket.emit("playerAction",{roomId:currentRoomId,action:"Raise",amount:Number(amount)})}; allInBtn.onclick=()=>{if(!joined||!currentRoomId)return;socket.emit("playerAction",{roomId:currentRoomId,action:"AllIn"})};
     applyLanguage();loadMe().catch(()=>{});refreshDashboard().catch(()=>{});
   </script>
@@ -909,6 +1037,7 @@ io.on("connection", (socket) => {
       if (!room) { socket.emit("gameMessage", "Room not found."); return; }
       const player = room.players.find((p) => p.socketId === socket.id && p.userId === session.userId);
       if (!player) { socket.emit("gameMessage", "Join this room before chatting."); return; }
+      if (tooMany("chat:" + session.userId, 8, 10000)) { socket.emit("gameMessage", "You are sending messages too fast."); return; }
       const cleanMessage = sanitizeChatMessage(message);
       if (!cleanMessage) return;
       const chatMessage = { userId: player.userId, name: player.name, text: cleanMessage, createdAt: new Date().toISOString() };
@@ -921,6 +1050,7 @@ io.on("connection", (socket) => {
     try {
       const room = rooms[roomId]; if (!room) return;
       const player = room.players.find((p) => p.socketId === socket.id);
+      if (player && tooMany("action:" + player.userId, 20, 5000)) { socket.emit("gameMessage", "Slow down."); return; }
       if (!player) { socket.emit("gameMessage", "Join a room first."); return; }
       if (playablePlayers(room).length < 2) { socket.emit("gameMessage", "Need at least 2 connected players with chips to start."); return; }
       await startHand(room); io.to(room.id).emit("gameMessage", room.status); emitRoom(room);
@@ -931,15 +1061,59 @@ io.on("connection", (socket) => {
     try {
       const room = rooms[roomId]; if (!room) return;
       const player = room.players.find((p) => p.socketId === socket.id);
+      if (player && tooMany("action:" + player.userId, 20, 5000)) { socket.emit("gameMessage", "Slow down."); return; }
       if (!player) { socket.emit("gameMessage", "You are not seated in this room."); return; }
       if (room.phase === "waiting" || room.phase === "showdown") { socket.emit("gameMessage", "Hand is not active."); return; }
       if (!player.isTurn) { socket.emit("gameMessage", "It is not your turn."); return; }
       if (player.allIn || player.folded || player.disconnected || player.waitingNextHand) { socket.emit("gameMessage", "You cannot act now."); return; }
       if (action === "Fold") { player.folded = true; player.hasActed = true; player.status = "Folded"; room.status = player.name + " folded"; io.to(room.id).emit("gameMessage", player.name + " folded."); await proceedAfterAction(room); emitRoom(room); return; }
       if (action === "Call") { const callAmount = Math.max(0, room.currentBet - player.bet); const paidAmount = await takeChips(player, callAmount); room.pot += paidAmount; player.hasActed = true; if (paidAmount < callAmount && player.allIn) { player.status = "All-in"; room.status = player.name + " calls all-in for " + paidAmount; io.to(room.id).emit("gameMessage", player.name + " calls all-in for " + paidAmount + "."); } else if (callAmount === 0) { player.status = "Checked"; room.status = player.name + " checked"; io.to(room.id).emit("gameMessage", player.name + " checked."); } else { player.status = "Called"; room.status = player.name + " called " + paidAmount; io.to(room.id).emit("gameMessage", player.name + " called " + paidAmount + "."); } await proceedAfterAction(room); emitRoom(room); return; }
-      if (action === "Raise") { const raiseToAmount = Number(amount); if (!Number.isFinite(raiseToAmount) || raiseToAmount <= room.currentBet) { socket.emit("gameMessage", "Raise must be higher than current bet."); return; } const neededAmount = raiseToAmount - player.bet; if (neededAmount <= 0) { socket.emit("gameMessage", "Invalid raise amount."); return; } if (player.chips < neededAmount) { socket.emit("gameMessage", "Not enough chips. Use All-in instead."); return; } const paidAmount = await takeChips(player, neededAmount); room.pot += paidAmount; room.currentBet = raiseToAmount; room.players.forEach((p) => { if (!p.folded && !p.allIn && !p.disconnected && !p.waitingNextHand && p.chips > 0) p.hasActed = false; }); player.hasActed = true; player.status = player.allIn ? "All-in Raise" : "Raised"; room.status = player.name + " raised to " + raiseToAmount; io.to(room.id).emit("gameMessage", player.name + " raised to " + raiseToAmount + "."); await proceedAfterAction(room); emitRoom(room); return; }
+      if (action === "Raise") { const raiseToAmount = safeInteger(amount, 0); if (!Number.isFinite(raiseToAmount) || raiseToAmount <= room.currentBet) { socket.emit("gameMessage", "Raise must be higher than current bet."); return; } const neededAmount = raiseToAmount - player.bet; if (neededAmount <= 0) { socket.emit("gameMessage", "Invalid raise amount."); return; } if (player.chips < neededAmount) { socket.emit("gameMessage", "Not enough chips. Use All-in instead."); return; } const paidAmount = await takeChips(player, neededAmount); room.pot += paidAmount; room.currentBet = raiseToAmount; room.players.forEach((p) => { if (!p.folded && !p.allIn && !p.disconnected && !p.waitingNextHand && p.chips > 0) p.hasActed = false; }); player.hasActed = true; player.status = player.allIn ? "All-in Raise" : "Raised"; room.status = player.name + " raised to " + raiseToAmount; io.to(room.id).emit("gameMessage", player.name + " raised to " + raiseToAmount + "."); await proceedAfterAction(room); emitRoom(room); return; }
       if (action === "AllIn") { const allInBefore = player.chips; const targetBet = player.bet + allInBefore; const paidAmount = await takeChips(player, allInBefore); room.pot += paidAmount; player.hasActed = true; player.status = "All-in"; if (targetBet > room.currentBet) { room.currentBet = targetBet; room.players.forEach((p) => { if (!p.folded && !p.allIn && !p.disconnected && !p.waitingNextHand && p.chips > 0) p.hasActed = false; }); player.hasActed = true; room.status = player.name + " goes all-in raising to " + targetBet; io.to(room.id).emit("gameMessage", player.name + " goes all-in raising to " + targetBet + "."); } else { room.status = player.name + " goes all-in for " + paidAmount; io.to(room.id).emit("gameMessage", player.name + " goes all-in for " + paidAmount + "."); } await proceedAfterAction(room); emitRoom(room); return; }
     } catch (error) { console.error("Player action error:", error); socket.emit("gameMessage", "Action failed."); }
+  });
+
+
+  function getVoicePlayer(roomId) {
+    const session = socket.request.session;
+    if (!session || !session.userId) return null;
+    const room = rooms[roomId];
+    if (!room) return null;
+    const player = room.players.find((p) => p.socketId === socket.id && p.userId === session.userId);
+    if (!player) return null;
+    return { room, player };
+  }
+
+  socket.on("voiceJoin", ({ roomId }) => {
+    const found = getVoicePlayer(roomId);
+    if (!found) return;
+    socket.join("voice:" + found.room.id);
+    socket.to("voice:" + found.room.id).emit("voicePeerJoined", { socketId: socket.id, name: found.player.name });
+  });
+
+  socket.on("voiceOffer", ({ roomId, targetSocketId, offer }) => {
+    const found = getVoicePlayer(roomId);
+    if (!found || !targetSocketId || !offer) return;
+    io.to(targetSocketId).emit("voiceOffer", { fromSocketId: socket.id, offer, name: found.player.name });
+  });
+
+  socket.on("voiceAnswer", ({ roomId, targetSocketId, answer }) => {
+    const found = getVoicePlayer(roomId);
+    if (!found || !targetSocketId || !answer) return;
+    io.to(targetSocketId).emit("voiceAnswer", { fromSocketId: socket.id, answer });
+  });
+
+  socket.on("voiceIceCandidate", ({ roomId, targetSocketId, candidate }) => {
+    const found = getVoicePlayer(roomId);
+    if (!found || !targetSocketId || !candidate) return;
+    io.to(targetSocketId).emit("voiceIceCandidate", { fromSocketId: socket.id, candidate });
+  });
+
+  socket.on("voiceLeave", ({ roomId }) => {
+    const found = getVoicePlayer(roomId);
+    if (!found) return;
+    socket.leave("voice:" + found.room.id);
+    socket.to("voice:" + found.room.id).emit("voicePeerLeft", { socketId: socket.id });
   });
 
   socket.on("disconnect", () => {
@@ -947,6 +1121,7 @@ io.on("connection", (socket) => {
     const location = findPlayerLocation(socket.id);
     if (!location) { io.emit("onlineCount", io.engine.clientsCount); return; }
     const { room, player } = location;
+    socket.to("voice:" + room.id).emit("voicePeerLeft", { socketId: socket.id });
     player.disconnected = true; player.isTurn = false; player.status = "Disconnected";
     io.to(room.id).emit("gameMessage", player.name + " disconnected. Waiting " + Math.floor(RECONNECT_GRACE_MS / 1000) + "s for reconnect."); emitRoom(room);
     const timer = setTimeout(() => {
