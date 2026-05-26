@@ -1,454 +1,377 @@
-const express = require("express");
-const path = require("path");
-
+const express = require('express');
 const app = express();
+
 const PORT = process.env.PORT || 8080;
 
-function homePage() {
-  return `<!doctype html>
+app.use(express.json());
+
+app.get('/health', (req, res) => {
+  res.json({ ok: true, service: 'poker-royale-home', time: new Date().toISOString() });
+});
+
+app.get('/', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#07150d" />
+  <meta name="theme-color" content="#04130b" />
   <title>Poker Royale</title>
   <style>
     :root {
-      --bg: #06120b;
-      --bg2: #020403;
-      --card: rgba(2, 16, 10, 0.82);
-      --card2: rgba(255, 255, 255, 0.055);
+      --bg: #04130b;
+      --bg2: #071f13;
+      --panel: rgba(2, 13, 8, 0.78);
+      --panel2: rgba(7, 31, 19, 0.88);
       --gold: #facc15;
       --gold2: #d97706;
       --green: #22c55e;
       --green2: #14532d;
-      --text: #fff7ad;
       --muted: #cbd5e1;
-      --border: rgba(250, 204, 21, 0.24);
-      --shadow: rgba(0, 0, 0, 0.42);
+      --line: rgba(250, 204, 21, 0.22);
+      --white: #fff7cc;
+      --shadow: rgba(0, 0, 0, 0.45);
     }
 
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-    html, body {
-      margin: 0;
-      min-height: 100%;
-      font-family: Tahoma, Arial, sans-serif;
-      background:
-        radial-gradient(circle at 20% 0%, rgba(250, 204, 21, 0.18), transparent 28%),
-        radial-gradient(circle at 82% 10%, rgba(34, 197, 94, 0.18), transparent 32%),
-        radial-gradient(circle at center, #0f5132 0%, #07150d 45%, #020403 100%);
-      color: white;
-    }
+    html, body { margin: 0; min-height: 100%; }
 
     body {
-      padding: calc(18px + env(safe-area-inset-top)) 14px calc(22px + env(safe-area-inset-bottom));
+      font-family: Tahoma, Arial, sans-serif;
+      color: white;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(250, 204, 21, 0.18), transparent 28%),
+        radial-gradient(circle at 84% 10%, rgba(34, 197, 94, 0.18), transparent 34%),
+        linear-gradient(180deg, #0b2416 0%, #04130b 50%, #010603 100%);
+      padding: calc(14px + env(safe-area-inset-top)) 14px calc(26px + env(safe-area-inset-bottom));
       overflow-x: hidden;
     }
 
-    .page {
-      width: 100%;
-      max-width: 960px;
-      margin: 0 auto;
-    }
+    .shell { width: 100%; max-width: 1020px; margin: 0 auto; }
 
     .hero {
       position: relative;
-      border: 1px solid var(--border);
-      border-radius: 30px;
-      padding: 22px 18px;
-      background:
-        linear-gradient(145deg, rgba(0, 0, 0, 0.62), rgba(2, 18, 10, 0.72)),
-        radial-gradient(circle at top right, rgba(250, 204, 21, 0.18), transparent 42%),
-        radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.16), transparent 48%);
-      box-shadow: 0 22px 70px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.08);
       overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      padding: 20px;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(250, 204, 21, 0.18), transparent 34%),
+        linear-gradient(145deg, rgba(0, 0, 0, 0.78), rgba(5, 46, 22, 0.46));
+      box-shadow: 0 22px 70px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 
-    .hero::before {
-      content: "";
-      position: absolute;
-      inset: -80px -120px auto auto;
-      width: 240px;
-      height: 240px;
-      border-radius: 50%;
-      background: rgba(250, 204, 21, 0.10);
-      filter: blur(6px);
-    }
+    .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 
-    .topbar {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 13px;
-      min-width: 0;
-    }
-
-    .logo-mark {
+    .brand-mark {
       width: 64px;
       height: 64px;
-      flex: 0 0 64px;
-      border-radius: 22px;
+      border-radius: 20px;
       display: grid;
       place-items: center;
-      background: linear-gradient(160deg, #fff7ad 0%, var(--gold) 42%, #b45309 100%);
-      color: #08111f;
+      background: linear-gradient(180deg, #fff7ad, #facc15 48%, #b45309 100%);
+      color: #07111f;
       font-weight: 1000;
-      font-size: 25px;
-      letter-spacing: 1px;
-      box-shadow: 0 14px 34px rgba(250, 204, 21, 0.26);
+      letter-spacing: -2px;
+      font-size: 24px;
+      box-shadow: 0 0 34px rgba(250, 204, 21, 0.28);
+      flex: 0 0 auto;
     }
 
     .brand h1 {
       margin: 0;
-      font-family: Arial, Tahoma, sans-serif;
-      direction: ltr;
-      text-align: right;
-      font-size: clamp(34px, 8vw, 64px);
+      font-size: clamp(30px, 9vw, 58px);
       line-height: 0.95;
-      color: var(--text);
-      text-shadow: 0 0 26px rgba(250, 204, 21, 0.20);
-      white-space: nowrap;
+      color: var(--gold);
+      text-shadow: 0 0 26px rgba(250, 204, 21, 0.28);
+      direction: ltr;
+      text-align: left;
     }
 
     .brand p {
-      margin: 9px 0 0;
+      margin: 8px 0 0;
       color: var(--muted);
       font-size: 14px;
-      line-height: 1.7;
+      line-height: 1.8;
     }
 
     .lang {
       border: 1px solid rgba(250, 204, 21, 0.45);
-      background: rgba(0, 0, 0, 0.45);
+      background: rgba(0, 0, 0, 0.4);
       color: var(--gold);
       border-radius: 999px;
       padding: 12px 16px;
-      min-width: 62px;
-      font-weight: 900;
-      font-size: 16px;
-      box-shadow: inset 0 0 0 1px rgba(250,204,21,0.10);
-    }
-
-    .hero-title {
-      position: relative;
-      margin: 28px 0 8px;
-      color: var(--gold);
-      font-size: clamp(24px, 6vw, 42px);
-      line-height: 1.35;
       font-weight: 1000;
-      letter-spacing: -0.5px;
+      box-shadow: inset 0 0 0 1px rgba(250,204,21,0.12);
     }
 
-    .hero-subtitle {
-      position: relative;
+    .headline { margin: 22px 0 0; }
+
+    .headline h2 {
       margin: 0;
-      color: #e5e7eb;
-      font-size: 15px;
-      line-height: 1.9;
-      max-width: 720px;
+      font-size: clamp(25px, 7vw, 46px);
+      line-height: 1.35;
+      color: var(--white);
     }
 
-    .games-section {
-      margin-top: 22px;
-    }
-
-    .section-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: end;
-      gap: 12px;
-      margin: 0 4px 14px;
-    }
-
-    .section-head h2 {
-      margin: 0;
-      color: var(--text);
-      font-size: 22px;
-    }
-
-    .section-head span {
+    .headline p {
+      margin: 10px 0 0;
       color: var(--muted);
-      font-size: 13px;
+      line-height: 1.9;
+      font-size: 15px;
     }
 
-    .games-grid {
+    .section-title {
+      margin: 24px 4px 14px;
+      color: var(--gold);
+      font-size: 22px;
+      font-weight: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .section-title span:last-child {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid rgba(250, 204, 21, 0.24);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: rgba(0, 0, 0, 0.28);
+    }
+
+    .games {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 15px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
     }
 
     .game-card {
       position: relative;
-      min-height: 150px;
-      border: 1px solid var(--border);
-      border-radius: 30px;
-      padding: 20px;
-      display: flex;
-      align-items: center;
-      gap: 18px;
-      overflow: hidden;
+      min-height: 170px;
+      border-radius: 28px;
+      border: 1px solid rgba(250, 204, 21, 0.20);
       background:
-        linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025)),
-        radial-gradient(circle at 12% 50%, var(--glow), transparent 36%),
-        var(--card);
-      box-shadow: 0 16px 46px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07);
-      text-decoration: none;
-      color: white;
-      transition: transform 0.18s ease, border-color 0.18s ease;
+        radial-gradient(circle at 18% 22%, var(--glow), transparent 32%),
+        linear-gradient(145deg, rgba(0,0,0,0.70), rgba(7,31,19,0.82));
+      box-shadow: 0 18px 52px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.07);
+      padding: 18px;
+      overflow: hidden;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
 
-    .game-card:active {
-      transform: scale(0.985);
-      border-color: rgba(250,204,21,0.72);
+    .game-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -28px -44px auto;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      border: 28px solid rgba(255,255,255,0.035);
+      pointer-events: none;
     }
+
+    .game-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; position: relative; z-index: 1; }
 
     .game-icon {
-      width: 88px;
-      height: 88px;
-      flex: 0 0 88px;
-      border-radius: 28px;
+      width: 74px;
+      height: 74px;
+      border-radius: 24px;
       display: grid;
       place-items: center;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 14px 30px rgba(0,0,0,0.28);
-      font-size: 44px;
-    }
-
-    .game-info {
-      min-width: 0;
-      flex: 1;
-    }
-
-    .game-info h3 {
-      margin: 0;
-      color: #fff7ad;
-      font-size: clamp(28px, 8vw, 46px);
-      line-height: 1.1;
+      background: linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));
+      border: 1px solid rgba(255,255,255,0.16);
+      color: var(--accent);
+      font-size: 27px;
       font-weight: 1000;
-      letter-spacing: -0.8px;
+      direction: ltr;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 12px 26px rgba(0,0,0,0.25);
     }
 
-    .game-info p {
-      margin: 10px 0 0;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.7;
-    }
-
-    .game-status {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      border: 1px solid rgba(250,204,21,0.32);
-      background: rgba(250,204,21,0.10);
+    .badge {
+      border: 1px solid rgba(250, 204, 21, 0.34);
       color: var(--gold);
       border-radius: 999px;
       padding: 7px 11px;
       font-size: 12px;
-      font-weight: 900;
+      font-weight: 1000;
+      background: rgba(0,0,0,0.32);
       white-space: nowrap;
     }
 
-    .footer-nav {
+    .game-name {
+      position: relative;
+      z-index: 1;
+      margin: 16px 0 0;
+      color: var(--white);
+      font-size: clamp(25px, 6vw, 36px);
+      font-weight: 1000;
+      line-height: 1.25;
+    }
+
+    .game-desc {
+      position: relative;
+      z-index: 1;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .bottom-nav {
       position: sticky;
-      bottom: calc(10px + env(safe-area-inset-bottom));
-      margin-top: 22px;
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 10px;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      margin-top: 20px;
+      border: 1px solid rgba(250,204,21,0.20);
+      border-radius: 26px;
+      background: rgba(0,0,0,0.66);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 -12px 34px rgba(0,0,0,0.35);
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
-      background: rgba(0,0,0,0.62);
-      backdrop-filter: blur(16px);
-      box-shadow: 0 -12px 38px rgba(0,0,0,0.34);
+      padding: 9px;
+      z-index: 10;
     }
 
     .nav-item {
       border: 0;
       border-radius: 18px;
       padding: 12px 8px;
-      background: rgba(255,255,255,0.055);
-      color: #e5e7eb;
+      background: transparent;
+      color: var(--muted);
       font-weight: 900;
-      font-size: 13px;
+      font-family: inherit;
     }
 
     .nav-item.active {
-      background: linear-gradient(135deg, var(--gold), var(--gold2));
-      color: #111827;
+      background: linear-gradient(135deg, rgba(250,204,21,0.24), rgba(34,197,94,0.11));
+      color: var(--gold);
     }
 
     .toast {
       position: fixed;
-      right: 14px;
       left: 14px;
-      bottom: calc(86px + env(safe-area-inset-bottom));
-      z-index: 20;
+      right: 14px;
+      bottom: calc(92px + env(safe-area-inset-bottom));
+      max-width: 520px;
+      margin: 0 auto;
       border-radius: 18px;
-      padding: 13px 15px;
-      background: rgba(0,0,0,0.78);
-      border: 1px solid rgba(250,204,21,0.32);
-      color: white;
-      text-align: center;
-      transform: translateY(20px);
+      padding: 14px 16px;
+      background: rgba(0,0,0,0.82);
+      border: 1px solid rgba(250,204,21,0.26);
+      color: var(--white);
+      font-weight: 900;
+      box-shadow: 0 18px 46px rgba(0,0,0,0.46);
       opacity: 0;
+      transform: translateY(12px);
+      transition: 0.2s ease;
       pointer-events: none;
-      transition: opacity 0.22s ease, transform 0.22s ease;
+      text-align: center;
+      z-index: 20;
     }
 
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .toast.show { opacity: 1; transform: translateY(0); }
 
-    @media (min-width: 760px) {
-      .games-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 430px) {
-      body { padding-left: 12px; padding-right: 12px; }
-      .hero { border-radius: 26px; padding: 18px 16px; }
-      .logo-mark { width: 56px; height: 56px; flex-basis: 56px; border-radius: 19px; }
-      .brand { gap: 10px; }
-      .brand h1 { font-size: 38px; }
+    @media (max-width: 720px) {
+      .hero { border-radius: 26px; padding: 16px; }
+      .brand-mark { width: 58px; height: 58px; border-radius: 18px; font-size: 22px; }
       .brand p { font-size: 13px; }
-      .game-card { min-height: 142px; border-radius: 26px; padding: 18px; gap: 14px; }
-      .game-icon { width: 76px; height: 76px; flex-basis: 76px; border-radius: 24px; font-size: 38px; }
-      .game-info h3 { font-size: 31px; }
-      .game-info p { font-size: 13px; }
+      .games { grid-template-columns: 1fr; }
+      .game-card { min-height: 158px; border-radius: 26px; }
+      .game-icon { width: 68px; height: 68px; border-radius: 22px; }
     }
   </style>
 </head>
 <body>
-  <main class="page">
+  <main class="shell">
     <section class="hero">
-      <div class="topbar">
+      <div class="hero-top">
         <div class="brand">
-          <div class="logo-mark">PR</div>
+          <div class="brand-mark">PR</div>
           <div>
             <h1>Poker Royale</h1>
-            <p>ÙØ±Ú©Ø² Ø¨Ø§Ø²ÛâÙØ§Û Ø¢ÙÙØ§ÛÙ Ú©ÙØ§Ø³ÛÚ©Ø Ø±ÙØ§Ø¨ØªØ Ø³Ø±Ú¯Ø±ÙÛ Ù ÙÛØ¬Ø§Ù Ø¯Ø± ÛÚ© ØµÙØ­Ù ØªÙÛØ² Ù Ø³Ø±ÛØ¹.</p>
+            <p>&#1662;&#1604;&#1578;&#1601;&#1585;&#1605; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;&#1740; &#1570;&#1606;&#1604;&#1575;&#1740;&#1606; &#1705;&#1604;&#1575;&#1587;&#1740;&#1705;</p>
           </div>
         </div>
-        <button class="lang" type="button" onclick="toggleLang()">FA</button>
+        <button class="lang" type="button">FA</button>
       </div>
 
-      <h2 class="hero-title">Ø¨Ø§Ø²Û ÙÙØ±Ø¯ Ø¹ÙØ§ÙÙâØ§Øª Ø±Ø§ Ø§ÙØªØ®Ø§Ø¨ Ú©Ù</h2>
-      <p class="hero-subtitle">ÙØ¹ÙØ§Ù ØµÙØ­Ù Ø§ØµÙÛ Ø±Ø§ Ø­Ø±ÙÙâØ§Û ÙÛâÚ©ÙÛÙØ Ø¨Ø¹Ø¯ Ø¨Ø§Ø²ÛâÙØ§ Ø±Ø§ ÛÚ©ÛâÛÚ©Û Ú©Ø§ÙÙ Ù Ø¢ÙÙØ§ÛÙ ÙÛâØ³Ø§Ø²ÛÙ.</p>
-    </section>
-
-    <section class="games-section">
-      <div class="section-head">
-        <h2>ÙÛØ³Øª Ø¨Ø§Ø²ÛâÙØ§</h2>
-        <span>Ûµ Ø¨Ø§Ø²Û Ú©ÙØ§Ø³ÛÚ©</span>
-      </div>
-
-      <div class="games-grid">
-        <a class="game-card" href="#" style="--glow: rgba(250,204,21,0.18)" onclick="soon(event, 'Ø´Ø·Ø±ÙØ¬')">
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
-          <div class="game-icon">âï¸</div>
-          <div class="game-info">
-            <h3>Ø´Ø·Ø±ÙØ¬</h3>
-            <p>Ø±ÙØ§Ø¨Øª ÙÚ©Ø±Û Ø¯Ù ÙÙØ±Ù Ø¨Ø§ ÙÛØ² Ø¢ÙÙØ§ÛÙ Ù Ø²ÙØ§ÙâØ¨ÙØ¯Û Ø§Ø®ØªØµØ§ØµÛ.</p>
-          </div>
-        </a>
-
-        <a class="game-card" href="#" style="--glow: rgba(34,197,94,0.18)" onclick="soon(event, 'ÙÙÚ')">
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
-          <div class="game-icon">ð²</div>
-          <div class="game-info">
-            <h3>ÙÙÚ</h3>
-            <p>Ø¨Ø§Ø²Û ÙÙØ³ØªØ§ÙÚÛÚ© Ø®Ø§ÙÙØ§Ø¯Ú¯Û Ø¨Ø§ ØªØ§Ø³Ø ÙÙØ±Ù Ù Ø§ØªØ§ÙâÙØ§Û ÚÙØ¯ ÙÙØ±Ù.</p>
-          </div>
-        </a>
-
-        <a class="game-card" href="#" style="--glow: rgba(245,158,11,0.20)" onclick="soon(event, 'ØªØ®ØªÙ ÙØ±Ø¯')">
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
-          <div class="game-icon">â«</div>
-          <div class="game-info">
-            <h3>ØªØ®ØªÙ ÙØ±Ø¯</h3>
-            <p>ÙÛØ² Ú©ÙØ§Ø³ÛÚ©Ø ØªØ§Ø³ ÙØ§ÙØ¹ÛØ ÙØ³Ø§Ø¨ÙÙ Ø¯Ù ÙÙØ±Ù Ù Ø§ÙØªÛØ§Ø²Ø¯ÙÛ Ø¢ÙÙØ§ÛÙ.</p>
-          </div>
-        </a>
-
-        <a class="game-card" href="#" style="--glow: rgba(239,68,68,0.18)" onclick="soon(event, 'Ø­Ú©Ù')">
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
-          <div class="game-icon">ð¡</div>
-          <div class="game-info">
-            <h3>Ø­Ú©Ù</h3>
-            <p>Ø¨Ø§Ø²Û Ú©Ø§Ø±Øª ÚÙØ§Ø± ÙÙØ±Ù Ø¨Ø§ ØªÛÙâØ¨ÙØ¯ÛØ Ø­Ú©ÙâÚ¯ÛØ±Û Ù Ø¯Ø³ØªâÙØ§Û Ø¢ÙÙØ§ÛÙ.</p>
-          </div>
-        </a>
-
-        <a class="game-card" href="#" style="--glow: rgba(59,130,246,0.18)" onclick="soon(event, 'ÚÙØ§Ø± Ø¨Ø±Ú¯')">
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
-          <div class="game-icon">â£ï¸</div>
-          <div class="game-info">
-            <h3>ÚÙØ§Ø± Ø¨Ø±Ú¯</h3>
-            <p>Ø¨Ø§Ø²Û Ø³Ø±ÛØ¹ Ú©Ø§Ø±ØªÛ Ø¨Ø§ Ø§ÙØªÛØ§Ø²Ú¯ÛØ±ÛØ Ø±ÙØ§Ø¨Øª Ù ÙÛØ²ÙØ§Û Ø¢ÙÙØ§ÛÙ.</p>
-          </div>
-        </a>
+      <div class="headline">
+        <h2>&#1576;&#1575;&#1586;&#1740; &#1605;&#1608;&#1585;&#1583; &#1593;&#1604;&#1575;&#1602;&#1607;&#8204;&#1575;&#1578; &#1585;&#1575; &#1575;&#1606;&#1578;&#1582;&#1575;&#1576; &#1705;&#1606;</h2>
+        <p>&#1601;&#1593;&#1604;&#1575;&#1611; &#1585;&#1608;&#1740; &#1592;&#1575;&#1607;&#1585; &#1589;&#1601;&#1581;&#1607; &#1575;&#1589;&#1604;&#1740; &#1705;&#1575;&#1585; &#1605;&#1740;&#8204;&#1705;&#1606;&#1740;&#1605;. &#1576;&#1593;&#1583;&#1575;&#1611; &#1607;&#1585; &#1576;&#1575;&#1586;&#1740; &#1585;&#1575; &#1580;&#1583;&#1575;&#1711;&#1575;&#1606;&#1607; &#1705;&#1575;&#1605;&#1604; &#1605;&#1740;&#8204;&#1705;&#1606;&#1740;&#1605;.</p>
       </div>
     </section>
 
-    <nav class="footer-nav">
-      <button class="nav-item active" type="button">Ø®Ø§ÙÙ</button>
-      <button class="nav-item" type="button" onclick="soon(event, 'Ù¾Ø±ÙÙØ§ÛÙ')">Ù¾Ø±ÙÙØ§ÛÙ</button>
-      <button class="nav-item" type="button" onclick="soon(event, 'Ø±ØªØ¨ÙâØ¨ÙØ¯Û')">Ø±ØªØ¨ÙâØ¨ÙØ¯Û</button>
+    <div class="section-title">
+      <span>&#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;</span>
+      <span>&#1606;&#1587;&#1582;&#1607; &#1570;&#1586;&#1605;&#1575;&#1740;&#1588;&#1740;</span>
+    </div>
+
+    <section class="games" aria-label="Games">
+      <article class="game-card" style="--accent:#facc15;--glow:rgba(250,204,21,0.18)" data-game="&#1588;&#1591;&#1585;&#1606;&#1580;">
+        <div class="game-top"><div class="game-icon">CH</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div><div class="game-name">&#1588;&#1591;&#1585;&#1606;&#1580;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1575;&#1587;&#1578;&#1585;&#1575;&#1578;&#1688;&#1740;&#1705; &#1583;&#1608; &#1606;&#1601;&#1585;&#1607;</div></div>
+      </article>
+
+      <article class="game-card" style="--accent:#22c55e;--glow:rgba(34,197,94,0.18)" data-game="&#1605;&#1606;&#1670;">
+        <div class="game-top"><div class="game-icon">MN</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div><div class="game-name">&#1605;&#1606;&#1670;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1583;&#1608;&#1585;&#1607;&#1605;&#1740; &#1608; &#1587;&#1585;&#1711;&#1585;&#1605;&#8204;&#1705;&#1606;&#1606;&#1583;&#1607;</div></div>
+      </article>
+
+      <article class="game-card" style="--accent:#fb923c;--glow:rgba(251,146,60,0.18)" data-game="&#1578;&#1582;&#1578;&#1607; &#1606;&#1585;&#1583;">
+        <div class="game-top"><div class="game-icon">BG</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div><div class="game-name">&#1578;&#1582;&#1578;&#1607; &#1606;&#1585;&#1583;</div><div class="game-desc">&#1705;&#1604;&#1575;&#1587;&#1740;&#1705;&#1548; &#1587;&#1585;&#1740;&#1593; &#1608; &#1585;&#1602;&#1575;&#1576;&#1578;&#1740;</div></div>
+      </article>
+
+      <article class="game-card" style="--accent:#ef4444;--glow:rgba(239,68,68,0.18)" data-game="&#1581;&#1705;&#1605;">
+        <div class="game-top"><div class="game-icon">HK</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div><div class="game-name">&#1581;&#1705;&#1605;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1705;&#1575;&#1585;&#1578;&#1740; &#1605;&#1581;&#1576;&#1608;&#1576; &#1608; &#1578;&#1740;&#1605;&#1740;</div></div>
+      </article>
+
+      <article class="game-card" style="--accent:#60a5fa;--glow:rgba(96,165,250,0.18)" data-game="&#1670;&#1607;&#1575;&#1585; &#1576;&#1585;&#1711;">
+        <div class="game-top"><div class="game-icon">4B</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div><div class="game-name">&#1670;&#1607;&#1575;&#1585; &#1576;&#1585;&#1711;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1705;&#1575;&#1585;&#1578;&#1740; &#1587;&#1575;&#1583;&#1607;&#1548; &#1587;&#1585;&#1740;&#1593; &#1608; &#1607;&#1740;&#1580;&#1575;&#1606;&#1740;</div></div>
+      </article>
+    </section>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" type="button">&#1582;&#1575;&#1606;&#1607;</button>
+      <button class="nav-item" type="button">&#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;</button>
+      <button class="nav-item" type="button">&#1662;&#1585;&#1608;&#1601;&#1575;&#1740;&#1604;</button>
     </nav>
   </main>
 
-  <div class="toast" id="toast"></div>
+  <div id="toast" class="toast">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740; &#1601;&#1593;&#1575;&#1604; &#1605;&#1740;&#8204;&#1588;&#1608;&#1583;</div>
 
   <script>
-    function soon(event, name) {
-      if (event) event.preventDefault();
-      const toast = document.getElementById('toast');
-      toast.textContent = name + ' Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯';
+    var toast = document.getElementById('toast');
+    var timer = null;
+    function showToast(message) {
+      toast.textContent = message + ' - ' + '\u0628\u0647\u200c\u0632\u0648\u062f\u06cc \u0641\u0639\u0627\u0644 \u0645\u06cc\u200c\u0634\u0648\u062f';
       toast.classList.add('show');
-      clearTimeout(window.__toastTimer);
-      window.__toastTimer = setTimeout(function () {
-        toast.classList.remove('show');
-      }, 2200);
+      clearTimeout(timer);
+      timer = setTimeout(function(){ toast.classList.remove('show'); }, 2200);
     }
-
-    function toggleLang() {
-      soon(null, 'Ø²Ø¨Ø§Ù Ø§ÙÚ¯ÙÛØ³Û');
-    }
+    document.querySelectorAll('.game-card').forEach(function(card) {
+      card.addEventListener('click', function() {
+        showToast(card.getAttribute('data-game') || 'Game');
+      });
+    });
   </script>
 </body>
-</html>`;
-}
-
-app.get("/", (req, res) => {
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.send(homePage());
-});
-
-app.get("/health", (req, res) => {
-  res.json({ ok: true, service: "Poker Royale", version: "home-ui-v2-fixed" });
-});
-
-app.use((req, res) => {
-  res.redirect("/");
+</html>`);
 });
 
 app.listen(PORT, () => {
-  console.log("Poker Royale home UI running on port " + PORT);
+  console.log('Poker Royale Home UI running on port ' + PORT);
 });
