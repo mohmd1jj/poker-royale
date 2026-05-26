@@ -834,7 +834,7 @@ app.get("/", (req, res) => {
 }
 
 body::before {
-  content: "POKER ROYALE â¢ UI PRO";
+  content: "POKER ROYALE â¢ CLEAN GAMES UTF8 FIX";
   position: fixed;
   top: calc(8px + env(safe-area-inset-top));
   left: 50%;
@@ -1374,9 +1374,30 @@ body.home-mode .logo {
   }
 }
 
+  
+
+/* UTF8 FIX + CLEAN HOME FINAL */
+.home-hero, .game-hub.clean-home { max-width: 920px; margin-left: auto; margin-right: auto; }
+.main-games-grid { grid-template-columns: 1fr !important; }
+.big-game-card { width: 100% !important; min-height: 150px; justify-content: flex-start; overflow: hidden; }
+.big-game-card .game-name { font-size: clamp(28px, 8vw, 46px) !important; line-height: 1.15; white-space: normal; }
+.big-game-card .game-status { margin-left: auto; margin-right: 0; flex: 0 0 auto; }
+body.rtl .big-game-card .game-status { margin-right: auto; margin-left: 0; }
+@media (max-width: 850px) {
+  .home-hero { margin-top: 10px; }
+  .home-title { font-size: 38px !important; }
+  .home-subtitle { font-size: 18px !important; line-height: 1.8; }
+  .home-copy { font-size: 24px !important; line-height: 1.7; }
+  .game-hub.clean-home { padding: 10px 0 40px !important; }
+  .big-game-card { min-height: 136px !important; padding: 24px 22px !important; border-radius: 28px !important; }
+  .big-game-card .game-logo { width: 82px !important; height: 82px !important; min-width: 82px !important; font-size: 42px !important; }
+  .big-game-card .game-status { font-size: 13px !important; padding: 8px 13px !important; }
+}
+
   </style>
 </head>
 <body class="home-mode">
+  <!-- CLEAN_GAMES_HOME_UTF8_FIXED_V2 -->
   <div id="toast" class="toast"></div>
   <div class="app">
     <div class="top-row"><div class="logo">\u2660 Poker Royale \u2663</div><button class="lang-btn" id="langBtn">FA</button></div>
@@ -1386,38 +1407,38 @@ body.home-mode .logo {
         <div class="home-logo-mark">PR</div>
         <div>
           <div class="home-title">Poker Royale</div>
-          <div class="home-subtitle">Ø¨Ø§Ø²ÛâÙØ§Û Ú©ÙØ§Ø³ÛÚ© Ø¢ÙÙØ§ÛÙ Ø¨Ø§ Ø¯ÙØ³ØªØ§Ù</div>
+          <div class="home-subtitle">&#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;&#1740; &#1705;&#1604;&#1575;&#1587;&#1740;&#1705; &#1570;&#1606;&#1604;&#1575;&#1740;&#1606; &#1576;&#1575; &#1583;&#1608;&#1587;&#1578;&#1575;&#1606;</div>
         </div>
       </div>
-      <div class="home-copy">ÛÚ© Ø¨Ø§Ø²Û Ø±Ø§ Ø§ÙØªØ®Ø§Ø¨ Ú©Ù</div>
+      <div class="home-copy">&#1740;&#1705; &#1576;&#1575;&#1586;&#1740; &#1585;&#1575; &#1575;&#1606;&#1578;&#1582;&#1575;&#1576; &#1705;&#1606;</div>
     </section>
 
     <section class="game-hub clean-home" id="gameHub">
       <div class="game-grid main-games-grid">
         <button class="game-card big-game-card" type="button" data-game="chess">
           <div class="game-logo chess-logo">â</div>
-          <div class="game-name">Ø´Ø·Ø±ÙØ¬</div>
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+          <div class="game-name">&#1588;&#1591;&#1585;&#1606;&#1580;</div>
+          <div class="game-status">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div>
         </button>
         <button class="game-card big-game-card" type="button" data-game="ludo">
           <div class="game-logo ludo-logo">ð²</div>
-          <div class="game-name">ÙÙÚ</div>
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+          <div class="game-name">&#1605;&#1606;&#1670;</div>
+          <div class="game-status">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div>
         </button>
         <button class="game-card big-game-card" type="button" data-game="backgammon">
           <div class="game-logo backgammon-logo">â</div>
-          <div class="game-name">ØªØ®ØªÙ ÙØ±Ø¯</div>
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+          <div class="game-name">&#1578;&#1582;&#1578;&#1607; &#1606;&#1585;&#1583;</div>
+          <div class="game-status">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div>
         </button>
         <button class="game-card big-game-card" type="button" data-game="hokm">
           <div class="game-logo hokm-logo">â¥</div>
-          <div class="game-name">Ø­Ú©Ù</div>
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+          <div class="game-name">&#1581;&#1705;&#1605;</div>
+          <div class="game-status">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div>
         </button>
         <button class="game-card big-game-card" type="button" data-game="charbarg">
           <div class="game-logo charbarg-logo">â¦</div>
-          <div class="game-name">ÚÙØ§Ø± Ø¨Ø±Ú¯</div>
-          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+          <div class="game-name">&#1670;&#1607;&#1575;&#1585; &#1576;&#1585;&#1711;</div>
+          <div class="game-status">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div>
         </button>
       </div>
     </section>
@@ -1436,7 +1457,7 @@ body.home-mode .logo {
     const text={en:{langButton:"FA",loginFirst:"Login first, then choose a room",username:"Username",password:"Password",login:"Login",register:"Register",logout:"Logout",needLogin:"Please login or register first.",joined:"You joined",raiseAmount:"Raise to amount:",you:"You",bet:"Bet",committed:"Committed",pot:"POT",callCheck:"Call / Check",start:"Start",fold:"Fold",raise:"Raise",allIn:"All-in",dailyBonus:"Daily Bonus",reload:"Reload",chatTitle:"Room Chat",chatPlaceholder:"Write a message...",chatSend:"Send"},fa:{langButton:"EN",loginFirst:"\u0627\u0648\u0644 \u0648\u0627\u0631\u062F \u062D\u0633\u0627\u0628 \u0634\u0648\u060C \u0628\u0639\u062F \u0627\u062A\u0627\u0642 \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646",username:"\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC",password:"\u0631\u0645\u0632 \u0639\u0628\u0648\u0631",login:"\u0648\u0631\u0648\u062F",register:"\u062B\u0628\u062A\u200C\u0646\u0627\u0645",logout:"\u062E\u0631\u0648\u062C",needLogin:"\u0627\u0648\u0644 \u0648\u0627\u0631\u062F \u062D\u0633\u0627\u0628 \u0634\u0648 \u06CC\u0627 \u062B\u0628\u062A\u200C\u0646\u0627\u0645 \u06A9\u0646.",joined:"\u0648\u0627\u0631\u062F \u0634\u062F\u06CC \u0628\u0647",raiseAmount:"\u0627\u0641\u0632\u0627\u06CC\u0634 \u062A\u0627 \u0645\u0628\u0644\u063A:",you:"\u0634\u0645\u0627",bet:"\u0634\u0631\u0637",committed:"\u06A9\u0644 \u0634\u0631\u0637",pot:"\u067E\u0627\u062A",callCheck:"\u06A9\u0627\u0644 / \u0686\u06A9",start:"\u0634\u0631\u0648\u0639",fold:"\u0627\u0646\u0635\u0631\u0627\u0641",raise:"\u0627\u0641\u0632\u0627\u06CC\u0634",allIn:"\u0622\u0644 \u0627\u06CC\u0646",dailyBonus:"\u062C\u0627\u06CC\u0632\u0647 \u0631\u0648\u0632\u0627\u0646\u0647",reload:"\u0634\u0627\u0631\u0698 \u0686\u06CC\u067E",chatTitle:"\u0686\u062A \u0627\u062A\u0627\u0642",chatPlaceholder:"\u067E\u06CC\u0627\u0645 \u0628\u0646\u0648\u06CC\u0633...",chatSend:"\u0627\u0631\u0633\u0627\u0644"}};
     const $=id=>document.getElementById(id),toast=$("toast"),langBtn=$("langBtn"),authForm=$("authForm"),userCard=$("userCard"),authUsername=$("authUsername"),authPassword=$("authPassword"),loginBtn=$("loginBtn"),registerBtn=$("registerBtn"),logoutBtn=$("logoutBtn"),bonusBtn=$("bonusBtn"),reloadBtn=$("reloadBtn"),panelUsername=$("panelUsername"),panelChips=$("panelChips"),statsPanel=$("statsPanel"),panelWins=$("panelWins"),panelLosses=$("panelLosses"),panelHands=$("panelHands"),panelBiggestPot=$("panelBiggestPot"),panelBestHand=$("panelBestHand"),leaderboardList=$("leaderboardList"),historyList=$("historyList"),connectionStatus=$("connectionStatus"),onlineCount=$("onlineCount"),phaseStatus=$("phaseStatus"),roomsEl=$("rooms"),playersEl=$("players"),communityCardsEl=$("communityCards"),myCardsEl=$("myCards"),potDisplay=$("potDisplay"),turnStatus=$("turnStatus"),gameLog=$("gameLog"),startBtn=$("startBtn"),foldBtn=$("foldBtn"),callBtn=$("callBtn"),raiseBtn=$("raiseBtn"),allInBtn=$("allInBtn"),chatTitle=$("chatTitle"),chatRoomName=$("chatRoomName"),chatMessages=$("chatMessages"),chatInput=$("chatInput"),chatSendBtn=$("chatSendBtn");
     function tr(){return text[currentLang]} 
-    function initGameHub(){document.querySelectorAll(".game-card").forEach(card=>{card.onclick=()=>{document.querySelectorAll(".game-card").forEach(c=>c.classList.remove("active"));card.classList.add("active");const name=card.querySelector(".game-name")?card.querySelector(".game-name").textContent:"Game";showToast((currentLang==="fa"?"Ø¨Ø§Ø²Û ":"Game ")+name+(currentLang==="fa"?" Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯":" is coming soon"));}})}
+    function initGameHub(){document.querySelectorAll(".game-card").forEach(card=>{card.onclick=()=>{document.querySelectorAll(".game-card").forEach(c=>c.classList.remove("active"));card.classList.add("active");const name=card.querySelector(".game-name")?card.querySelector(".game-name").textContent:"Game";showToast((currentLang==="fa"?"\u0628\u0627\u0632\u06CC ":"Game ")+name+(currentLang==="fa"?" &#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740; ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯":" is coming soon"));}})}
     function showToast(m){toast.textContent=m;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),2800)}
     function applyLanguage(){document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==="fa"?"rtl":"ltr";document.body.classList.toggle("rtl",currentLang==="fa");langBtn.textContent=tr().langButton;authUsername.placeholder=tr().username;authPassword.placeholder=tr().password;loginBtn.textContent=tr().login;registerBtn.textContent=tr().register;logoutBtn.textContent=tr().logout;bonusBtn.textContent=tr().dailyBonus;reloadBtn.textContent=tr().reload;startBtn.textContent=tr().start;foldBtn.textContent=tr().fold;callBtn.textContent=tr().callCheck;raiseBtn.textContent=tr().raise;allInBtn.textContent=tr().allIn;chatTitle.textContent=tr().chatTitle;chatInput.placeholder=tr().chatPlaceholder;chatSendBtn.textContent=tr().chatSend;if(!joined)turnStatus.textContent=tr().loginFirst;if(latestRoom){updateTableText(latestRoom);renderPlayers(latestRoom.players)}}
     langBtn.onclick=()=>{currentLang=currentLang==="en"?"fa":"en";localStorage.setItem("pokerLang",currentLang);applyLanguage()};
