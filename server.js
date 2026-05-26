@@ -1145,21 +1145,280 @@ body {
   .btn { min-width: 66px !important; font-size: 12px !important; }
 }
 
+  
+
+/* =========================
+   CLEAN HOME GAMES LANDING
+   ========================= */
+body.home-mode {
+  padding-bottom: 24px !important;
+  background:
+    radial-gradient(circle at 20% 5%, rgba(250,204,21,.20), transparent 30%),
+    radial-gradient(circle at 80% 0%, rgba(34,197,94,.18), transparent 32%),
+    radial-gradient(circle at center, #0f5132 0%, #07150d 48%, #010302 100%) !important;
+}
+
+body.home-mode .auth-panel,
+body.home-mode .top-status,
+body.home-mode .main-layout,
+body.home-mode .actions {
+  display: none !important;
+}
+
+body.home-mode .app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 18px;
+}
+
+body.home-mode .top-row {
+  justify-content: center !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding-top: 18px !important;
+}
+
+body.home-mode .lang-btn {
+  position: fixed;
+  top: calc(14px + env(safe-area-inset-top));
+  right: 14px;
+  z-index: 50;
+}
+
+body.home-mode .logo {
+  font-size: clamp(30px, 9vw, 58px) !important;
+  text-align: center;
+  letter-spacing: .8px;
+  background: linear-gradient(135deg, #fff7ad, #facc15, #b45309);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+
+.home-hero {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 18px 12px 6px;
+  text-align: center;
+}
+
+.home-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid rgba(250,204,21,.25);
+  border-radius: 28px;
+  background: linear-gradient(145deg, rgba(0,0,0,.58), rgba(2,6,23,.36));
+  box-shadow: 0 24px 70px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.10);
+}
+
+.home-logo-mark {
+  width: 58px;
+  height: 58px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at top, #fff7ad, #facc15 42%, #92400e);
+  color: #111827;
+  font-weight: 1000;
+  font-size: 20px;
+  box-shadow: 0 0 34px rgba(250,204,21,.36);
+}
+
+.home-title {
+  color: #fff7ad;
+  font-size: clamp(24px, 7vw, 44px);
+  font-weight: 1000;
+  line-height: 1;
+  letter-spacing: .8px;
+}
+
+.home-subtitle {
+  margin-top: 7px;
+  color: #d1d5db;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.home-copy {
+  margin-top: 18px;
+  color: #facc15;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: .4px;
+}
+
+.clean-home {
+  width: min(100%, 980px);
+  margin: 0 auto 30px;
+  padding: 6px 4px 20px;
+}
+
+.main-games-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.big-game-card {
+  min-height: 172px;
+  border: 1px solid rgba(250,204,21,.25) !important;
+  border-radius: 28px !important;
+  padding: 20px 14px !important;
+  background:
+    radial-gradient(circle at top left, rgba(250,204,21,.16), transparent 38%),
+    linear-gradient(145deg, rgba(0,0,0,.70), rgba(2,6,23,.52)) !important;
+  box-shadow: 0 22px 56px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.10);
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  color: white;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.big-game-card:active {
+  transform: scale(.98);
+}
+
+.big-game-card.active,
+.big-game-card:hover {
+  border-color: rgba(250,204,21,.85) !important;
+  box-shadow: 0 24px 70px rgba(250,204,21,.14), inset 0 1px 0 rgba(255,255,255,.14);
+}
+
+.big-game-card .game-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 42px;
+  font-weight: 1000;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 14px 34px rgba(0,0,0,.32);
+}
+
+.chess-logo { color:#fff7ad; }
+.ludo-logo { color:#22c55e; }
+.backgammon-logo { color:#f59e0b; }
+.hokm-logo { color:#ef4444; }
+.charbarg-logo { color:#fb7185; }
+
+.big-game-card .game-name {
+  font-size: 23px;
+  font-weight: 1000;
+  color: #fff7ad;
+}
+
+.big-game-card .game-status {
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: rgba(250,204,21,.14);
+  border: 1px solid rgba(250,204,21,.22);
+  color: #facc15;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+@media (min-width: 900px) {
+  .main-games-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .big-game-card {
+    min-height: 210px;
+  }
+}
+
+@media (max-width: 520px) {
+  .main-games-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .big-game-card {
+    min-height: 145px;
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: right;
+    padding-inline: 20px !important;
+  }
+
+  .big-game-card .game-logo {
+    width: 64px;
+    height: 64px;
+    font-size: 34px;
+    flex: 0 0 auto;
+  }
+
+  .big-game-card .game-name {
+    font-size: 24px;
+  }
+
+  .big-game-card .game-status {
+    margin-inline-start: auto;
+  }
+
+  .home-brand {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
   </style>
 </head>
-<body>
+<body class="home-mode">
   <div id="toast" class="toast"></div>
   <div class="app">
     <div class="top-row"><div class="logo">\u2660 Poker Royale \u2663</div><button class="lang-btn" id="langBtn">FA</button></div>
 
-    <section class="game-hub" id="gameHub">
-      <div class="game-hub-head"><div class="game-hub-title">Game Lobby</div><div class="game-hub-sub">Choose a game. Poker is live now; more games are coming soon.</div></div>
-      <div class="game-grid">
-        <button class="game-card active" type="button" data-game="poker"><div class="game-logo">&#9824;</div><div class="game-name">Texas Hold'em</div><div class="game-status">LIVE</div></button>
-        <button class="game-card locked" type="button" data-game="blackjack"><div class="game-logo">&#127183;</div><div class="game-name">Blackjack</div><div class="game-status">SOON</div></button>
-        <button class="game-card locked" type="button" data-game="roulette"><div class="game-logo">&#9673;</div><div class="game-name">Roulette</div><div class="game-status">SOON</div></button>
-        <button class="game-card locked" type="button" data-game="slots"><div class="game-logo">&#127920;</div><div class="game-name">Slots</div><div class="game-status">SOON</div></button>
-        <button class="game-card locked" type="button" data-game="baccarat"><div class="game-logo">&#9830;</div><div class="game-name">Baccarat</div><div class="game-status">SOON</div></button>
+    <section class="home-hero" id="homeHero">
+      <div class="home-brand">
+        <div class="home-logo-mark">PR</div>
+        <div>
+          <div class="home-title">Poker Royale</div>
+          <div class="home-subtitle">Ø¨Ø§Ø²ÛâÙØ§Û Ú©ÙØ§Ø³ÛÚ© Ø¢ÙÙØ§ÛÙ Ø¨Ø§ Ø¯ÙØ³ØªØ§Ù</div>
+        </div>
+      </div>
+      <div class="home-copy">ÛÚ© Ø¨Ø§Ø²Û Ø±Ø§ Ø§ÙØªØ®Ø§Ø¨ Ú©Ù</div>
+    </section>
+
+    <section class="game-hub clean-home" id="gameHub">
+      <div class="game-grid main-games-grid">
+        <button class="game-card big-game-card" type="button" data-game="chess">
+          <div class="game-logo chess-logo">â</div>
+          <div class="game-name">Ø´Ø·Ø±ÙØ¬</div>
+          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+        </button>
+        <button class="game-card big-game-card" type="button" data-game="ludo">
+          <div class="game-logo ludo-logo">ð²</div>
+          <div class="game-name">ÙÙÚ</div>
+          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+        </button>
+        <button class="game-card big-game-card" type="button" data-game="backgammon">
+          <div class="game-logo backgammon-logo">â</div>
+          <div class="game-name">ØªØ®ØªÙ ÙØ±Ø¯</div>
+          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+        </button>
+        <button class="game-card big-game-card" type="button" data-game="hokm">
+          <div class="game-logo hokm-logo">â¥</div>
+          <div class="game-name">Ø­Ú©Ù</div>
+          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+        </button>
+        <button class="game-card big-game-card" type="button" data-game="charbarg">
+          <div class="game-logo charbarg-logo">â¦</div>
+          <div class="game-name">ÚÙØ§Ø± Ø¨Ø±Ú¯</div>
+          <div class="game-status">Ø¨ÙâØ²ÙØ¯Û</div>
+        </button>
       </div>
     </section>
     <div class="auth-panel">
@@ -1177,7 +1436,7 @@ body {
     const text={en:{langButton:"FA",loginFirst:"Login first, then choose a room",username:"Username",password:"Password",login:"Login",register:"Register",logout:"Logout",needLogin:"Please login or register first.",joined:"You joined",raiseAmount:"Raise to amount:",you:"You",bet:"Bet",committed:"Committed",pot:"POT",callCheck:"Call / Check",start:"Start",fold:"Fold",raise:"Raise",allIn:"All-in",dailyBonus:"Daily Bonus",reload:"Reload",chatTitle:"Room Chat",chatPlaceholder:"Write a message...",chatSend:"Send"},fa:{langButton:"EN",loginFirst:"\u0627\u0648\u0644 \u0648\u0627\u0631\u062F \u062D\u0633\u0627\u0628 \u0634\u0648\u060C \u0628\u0639\u062F \u0627\u062A\u0627\u0642 \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646",username:"\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC",password:"\u0631\u0645\u0632 \u0639\u0628\u0648\u0631",login:"\u0648\u0631\u0648\u062F",register:"\u062B\u0628\u062A\u200C\u0646\u0627\u0645",logout:"\u062E\u0631\u0648\u062C",needLogin:"\u0627\u0648\u0644 \u0648\u0627\u0631\u062F \u062D\u0633\u0627\u0628 \u0634\u0648 \u06CC\u0627 \u062B\u0628\u062A\u200C\u0646\u0627\u0645 \u06A9\u0646.",joined:"\u0648\u0627\u0631\u062F \u0634\u062F\u06CC \u0628\u0647",raiseAmount:"\u0627\u0641\u0632\u0627\u06CC\u0634 \u062A\u0627 \u0645\u0628\u0644\u063A:",you:"\u0634\u0645\u0627",bet:"\u0634\u0631\u0637",committed:"\u06A9\u0644 \u0634\u0631\u0637",pot:"\u067E\u0627\u062A",callCheck:"\u06A9\u0627\u0644 / \u0686\u06A9",start:"\u0634\u0631\u0648\u0639",fold:"\u0627\u0646\u0635\u0631\u0627\u0641",raise:"\u0627\u0641\u0632\u0627\u06CC\u0634",allIn:"\u0622\u0644 \u0627\u06CC\u0646",dailyBonus:"\u062C\u0627\u06CC\u0632\u0647 \u0631\u0648\u0632\u0627\u0646\u0647",reload:"\u0634\u0627\u0631\u0698 \u0686\u06CC\u067E",chatTitle:"\u0686\u062A \u0627\u062A\u0627\u0642",chatPlaceholder:"\u067E\u06CC\u0627\u0645 \u0628\u0646\u0648\u06CC\u0633...",chatSend:"\u0627\u0631\u0633\u0627\u0644"}};
     const $=id=>document.getElementById(id),toast=$("toast"),langBtn=$("langBtn"),authForm=$("authForm"),userCard=$("userCard"),authUsername=$("authUsername"),authPassword=$("authPassword"),loginBtn=$("loginBtn"),registerBtn=$("registerBtn"),logoutBtn=$("logoutBtn"),bonusBtn=$("bonusBtn"),reloadBtn=$("reloadBtn"),panelUsername=$("panelUsername"),panelChips=$("panelChips"),statsPanel=$("statsPanel"),panelWins=$("panelWins"),panelLosses=$("panelLosses"),panelHands=$("panelHands"),panelBiggestPot=$("panelBiggestPot"),panelBestHand=$("panelBestHand"),leaderboardList=$("leaderboardList"),historyList=$("historyList"),connectionStatus=$("connectionStatus"),onlineCount=$("onlineCount"),phaseStatus=$("phaseStatus"),roomsEl=$("rooms"),playersEl=$("players"),communityCardsEl=$("communityCards"),myCardsEl=$("myCards"),potDisplay=$("potDisplay"),turnStatus=$("turnStatus"),gameLog=$("gameLog"),startBtn=$("startBtn"),foldBtn=$("foldBtn"),callBtn=$("callBtn"),raiseBtn=$("raiseBtn"),allInBtn=$("allInBtn"),chatTitle=$("chatTitle"),chatRoomName=$("chatRoomName"),chatMessages=$("chatMessages"),chatInput=$("chatInput"),chatSendBtn=$("chatSendBtn");
     function tr(){return text[currentLang]} 
-    function initGameHub(){document.querySelectorAll(".game-card").forEach(card=>{card.onclick=()=>{const game=card.getAttribute("data-game");document.querySelectorAll(".game-card").forEach(c=>c.classList.remove("active"));card.classList.add("active");if(game==="poker"){showToast(currentLang==="fa"?"ÙÛØ² Ù¾ÙÚ©Ø± Ø¢ÙØ§Ø¯Ù Ø§Ø³Øª":"Poker table is ready");document.querySelector(".main-layout").scrollIntoView({behavior:"smooth",block:"start"})}else{showToast(currentLang==="fa"?"Ø§ÛÙ Ø¨Ø§Ø²Û Ø¨ÙâØ²ÙØ¯Û Ø§Ø¶Ø§ÙÙ ÙÛâØ´ÙØ¯":"This game is coming soon")}}})}
+    function initGameHub(){document.querySelectorAll(".game-card").forEach(card=>{card.onclick=()=>{document.querySelectorAll(".game-card").forEach(c=>c.classList.remove("active"));card.classList.add("active");const name=card.querySelector(".game-name")?card.querySelector(".game-name").textContent:"Game";showToast((currentLang==="fa"?"Ø¨Ø§Ø²Û ":"Game ")+name+(currentLang==="fa"?" Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯":" is coming soon"));}})}
     function showToast(m){toast.textContent=m;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),2800)}
     function applyLanguage(){document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==="fa"?"rtl":"ltr";document.body.classList.toggle("rtl",currentLang==="fa");langBtn.textContent=tr().langButton;authUsername.placeholder=tr().username;authPassword.placeholder=tr().password;loginBtn.textContent=tr().login;registerBtn.textContent=tr().register;logoutBtn.textContent=tr().logout;bonusBtn.textContent=tr().dailyBonus;reloadBtn.textContent=tr().reload;startBtn.textContent=tr().start;foldBtn.textContent=tr().fold;callBtn.textContent=tr().callCheck;raiseBtn.textContent=tr().raise;allInBtn.textContent=tr().allIn;chatTitle.textContent=tr().chatTitle;chatInput.placeholder=tr().chatPlaceholder;chatSendBtn.textContent=tr().chatSend;if(!joined)turnStatus.textContent=tr().loginFirst;if(latestRoom){updateTableText(latestRoom);renderPlayers(latestRoom.players)}}
     langBtn.onclick=()=>{currentLang=currentLang==="en"?"fa":"en";localStorage.setItem("pokerLang",currentLang);applyLanguage()};
