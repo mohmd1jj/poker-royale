@@ -46,6 +46,34 @@ async function initDb() {
       username VARCHAR(32) UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       chips INTEGER NOT NULL DEFAULT 1000,
+      wins INTEGER NOT NULL DEFAULT 0,
+      losses INTEGER NOT NULL DEFAULT 0,
+      hands_played INTEGER NOT NULL DEFAULT 0,
+      biggest_pot INTEGER NOT NULL DEFAULT 0,
+      best_hand VARCHAR(64) DEFAULT 'None',
+      best_hand_rank INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wins INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS losses INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS hands_played INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS biggest_pot INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS best_hand VARCHAR(64) DEFAULT 'None'");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS best_hand_rank INTEGER NOT NULL DEFAULT 0");
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS game_history (
+      id SERIAL PRIMARY KEY,
+      room_id VARCHAR(64) NOT NULL,
+      room_name VARCHAR(128) NOT NULL,
+      pot INTEGER NOT NULL DEFAULT 0,
+      winners TEXT NOT NULL,
+      winner_ids TEXT NOT NULL,
+      winning_hand VARCHAR(128) NOT NULL,
+      result_summary TEXT NOT NULL,
+      players_snapshot JSONB NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -55,7 +83,7 @@ async function initDb() {
 
 async function getUserById(id) {
   const result = await pool.query(
-    "SELECT id, username, chips FROM users WHERE id = $1",
+    "SELECT id, username, chips, wins, losses, hands_played, biggest_pot, best_hand FROM users WHERE id = $1",
     [id]
   );
 
@@ -67,6 +95,64 @@ async function updateUserChips(userId, chips) {
     "UPDATE users SET chips = $1 WHERE id = $2",
     [chips, userId]
   );
+}
+
+async function recordGameHistory(room, summary, winners, winningHandName) {
+  const playersSnapshot = room.players.map((player) => ({
+    userId: player.userId,
+    name: player.name,
+    chips: player.chips,
+    committedThisHand: player.committedThisHand || 0,
+    folded: player.folded,
+    allIn: player.allIn || false
+  }));
+
+  await pool.query(
+    `INSERT INTO game_history
+      (room_id, room_name, pot, winners, winner_ids, winning_hand, result_summary, players_snapshot)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      room.id,
+      room.name,
+      room.pot,
+      winners.map((player) => player.name).join(", "),
+      winners.map((player) => String(player.userId)).join(","),
+      winningHandName,
+      summary,
+      JSON.stringify(playersSnapshot)
+    ]
+  );
+}
+
+async function updateUserStatsAfterHand(room, winners, bestHandsByUserId, biggestWonPot) {
+  const winnerIds = new Set(winners.map((player) => player.userId));
+
+  for (const player of room.players) {
+    const won = winnerIds.has(player.userId);
+    const bestHand = bestHandsByUserId[player.userId] || { name: "Everyone else folded", rank: 0 };
+
+    await pool.query(
+      `UPDATE users
+       SET
+        wins = wins + $1,
+        losses = losses + $2,
+        hands_played = hands_played + 1,
+        biggest_pot = GREATEST(biggest_pot, $3),
+        best_hand = CASE WHEN best_hand_rank < $4 THEN $5 ELSE best_hand END,
+        best_hand_rank = GREATEST(best_hand_rank, $4),
+        chips = $6
+       WHERE id = $7`,
+      [
+        won ? 1 : 0,
+        won ? 0 : 1,
+        won ? biggestWonPot : 0,
+        bestHand.rank || 0,
+        bestHand.name || "None",
+        player.chips,
+        player.userId
+      ]
+    );
+  }
 }
 
 app.post("/api/register", async (req, res) => {
@@ -112,7 +198,7 @@ app.post("/api/login", async (req, res) => {
     const password = String(req.body.password || "");
 
     const result = await pool.query(
-      "SELECT id, username, password_hash, chips FROM users WHERE LOWER(username) = LOWER($1)",
+      "SELECT id, username, password_hash, chips, wins, losses, hands_played, biggest_pot, best_hand FROM users WHERE LOWER(username) = LOWER($1)",
       [username]
     );
 
@@ -132,7 +218,7 @@ app.post("/api/login", async (req, res) => {
 
     res.json({
       ok: true,
-      user: { id: user.id, username: user.username, chips: user.chips }
+      user: { id: user.id, username: user.username, chips: user.chips, wins: user.wins, losses: user.losses, hands_played: user.hands_played, biggest_pot: user.biggest_pot, best_hand: user.best_hand }
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -161,6 +247,38 @@ app.get("/api/me", async (req, res) => {
   } catch (error) {
     console.error("Me error:", error);
     res.status(500).json({ error: "Failed to load user." });
+  }
+});
+
+app.get("/api/leaderboard", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, username, chips, wins, losses, hands_played, biggest_pot, best_hand
+       FROM users
+       ORDER BY chips DESC, wins DESC, biggest_pot DESC
+       LIMIT 10`
+    );
+
+    res.json({ leaderboard: result.rows });
+  } catch (error) {
+    console.error("Leaderboard error:", error);
+    res.status(500).json({ error: "Failed to load leaderboard." });
+  }
+});
+
+app.get("/api/history", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, room_name, pot, winners, winning_hand, result_summary, created_at
+       FROM game_history
+       ORDER BY created_at DESC
+       LIMIT 15`
+    );
+
+    res.json({ history: result.rows });
+  } catch (error) {
+    console.error("History error:", error);
+    res.status(500).json({ error: "Failed to load history." });
   }
 });
 
@@ -477,7 +595,7 @@ async function startHand(room) {
     sbName +
     " posts SB " +
     smallBlind.amount +
-    ", " +
+        ", " +
     bbName +
     " posts BB " +
     bigBlind.amount;
@@ -500,13 +618,7 @@ function setCurrentTurn(room) {
     return;
   }
 
-  if (
-    room.turnIndex === -1 ||
-    !room.players[room.turnIndex] ||
-    room.players[room.turnIndex].folded ||
-    room.players[room.turnIndex].allIn ||
-    room.players[room.turnIndex].chips <= 0
-  ) {
+  if (room.turnIndex === -1 || !room.players[room.turnIndex] || room.players[room.turnIndex].folded || room.players[room.turnIndex].allIn || room.players[room.turnIndex].chips <= 0) {
     room.turnIndex = getNextActionIndex(room, room.turnIndex);
   }
 
@@ -833,15 +945,26 @@ async function finishHand(room) {
   }
 
   const resultMessages = [];
+  const payoutByUserId = {};
+  const bestHandsByUserId = {};
+  let allWinners = [];
+  let topWinningHandName = "Everyone else folded";
+  let topWinningHandRank = 0;
 
   if (remainingPlayers.length === 1) {
     const winner = remainingPlayers[0];
     winner.chips += room.pot;
+    payoutByUserId[winner.userId] = room.pot;
+    allWinners = [winner];
     resultMessages.push(winner.name + " wins " + room.pot + " because everyone else folded.");
   } else {
     if (room.communityCards.length < 5) {
       dealRemainingCommunityCards(room);
     }
+
+    remainingPlayers.forEach((player) => {
+      bestHandsByUserId[player.userId] = getPlayerHand(player, room);
+    });
 
     const sidePots = buildSidePots(room);
 
@@ -851,6 +974,18 @@ async function finishHand(room) {
 
       payouts.forEach((payout) => {
         payout.player.chips += payout.amount;
+        payoutByUserId[payout.player.userId] = (payoutByUserId[payout.player.userId] || 0) + payout.amount;
+      });
+
+      if (result.hand && result.hand.rank > topWinningHandRank) {
+        topWinningHandRank = result.hand.rank;
+        topWinningHandName = result.hand.name;
+      }
+
+      result.winners.forEach((winner) => {
+        if (!allWinners.find((player) => player.userId === winner.userId)) {
+          allWinners.push(winner);
+        }
       });
 
       const winnerNames = result.winners.map((player) => player.name).join(" & ");
@@ -868,6 +1003,8 @@ async function finishHand(room) {
     });
   }
 
+  const biggestWonPot = Math.max(0, ...Object.values(payoutByUserId));
+
   room.status = resultMessages.join(" | ");
   room.phase = "showdown";
   room.handStarted = false;
@@ -877,9 +1014,8 @@ async function finishHand(room) {
     player.status = remainingPlayers.includes(player) ? "Showdown" : "Folded";
   });
 
-  for (const player of room.players) {
-    await updateUserChips(player.userId, player.chips);
-  }
+  await updateUserStatsAfterHand(room, allWinners, bestHandsByUserId, biggestWonPot);
+  await recordGameHistory(room, room.status, allWinners, topWinningHandName);
 
   io.to(room.id).emit("gameMessage", room.status);
   emitRoom(room);
@@ -947,9 +1083,7 @@ app.get("/", (req, res) => {
       font-size: 28px;
       font-weight: 900;
       text-shadow: 0 0 20px rgba(250, 204, 21, 0.65);
-    }
-
-    .lang-btn {
+    }    .lang-btn {
       border: 1px solid rgba(250, 204, 21, 0.45);
       background: rgba(0, 0, 0, 0.45);
       color: #facc15;
@@ -1006,6 +1140,39 @@ app.get("/", (req, res) => {
     }
 
     .user-info strong { color: #facc15; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .stat-box {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(250,204,21,0.18);
+      border-radius: 12px;
+      padding: 8px;
+      font-size: 12px;
+      color: #d1d5db;
+    }
+
+    .stat-box strong { color: #facc15; }
+
+    .leaderboard-list, .history-list {
+      display: grid;
+      gap: 8px;
+      font-size: 12px;
+      color: #d1d5db;
+    }
+
+    .list-item {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 8px;
+      line-height: 1.45;
+    }
 
     .top-status {
       margin: 12px auto;
@@ -1279,6 +1446,7 @@ app.get("/", (req, res) => {
 
     @media (max-width: 850px) {
       .auth-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
       .main-layout { grid-template-columns: 1fr; }
       .top-status { grid-template-columns: 1fr; }
       .logo { font-size: 24px; }
@@ -1323,9 +1491,16 @@ app.get("/", (req, res) => {
         </div>
         <button class="small-btn logout-btn" id="logoutBtn">Logout</button>
       </div>
-    </div>
 
-    <div class="top-status">
+      <div id="statsPanel" class="stats-grid" style="display:none;">
+        <div class="stat-box">Wins<br><strong id="panelWins">0</strong></div>
+        <div class="stat-box">Losses<br><strong id="panelLosses">0</strong></div>
+        <div class="stat-box">Hands<br><strong id="panelHands">0</strong></div>
+        <div class="stat-box">Biggest Pot<br><strong id="panelBiggestPot">0</strong></div>
+        <div class="stat-box">Best Hand<br><strong id="panelBestHand">None</strong></div>
+      </div>
+    </div>
+        <div class="top-status">
       <div class="status-pill">Connection: <strong id="connectionStatus">Connecting...</strong></div>
       <div class="status-pill">Online: <strong id="onlineCount">0</strong></div>
       <div class="status-pill">Phase: <strong id="phaseStatus">waiting</strong></div>
@@ -1335,6 +1510,12 @@ app.get("/", (req, res) => {
       <aside class="panel">
         <h2>Lobby Rooms</h2>
         <div id="rooms"></div>
+
+        <h2 style="margin-top:16px;">Leaderboard</h2>
+        <div id="leaderboardList" class="leaderboard-list"></div>
+
+        <h2 style="margin-top:16px;">Game History</h2>
+        <div id="historyList" class="history-list"></div>
       </aside>
 
       <main>
@@ -1402,7 +1583,12 @@ app.get("/", (req, res) => {
         start: "Start",
         fold: "Fold",
         raise: "Raise",
-        allIn: "All-in"
+        allIn: "All-in",
+        wins: "Wins",
+        losses: "Losses",
+        hands: "Hands",
+        biggestPot: "Biggest Pot",
+        bestHand: "Best Hand"
       },
       fa: {
         langButton: "EN",
@@ -1423,7 +1609,12 @@ app.get("/", (req, res) => {
         start: "شروع",
         fold: "انصراف",
         raise: "افزایش",
-        allIn: "آل این"
+        allIn: "آل این",
+        wins: "برد",
+        losses: "باخت",
+        hands: "دست‌ها",
+        biggestPot: "بزرگ‌ترین پات",
+        bestHand: "بهترین دست"
       }
     };
 
@@ -1437,6 +1628,14 @@ app.get("/", (req, res) => {
     const logoutBtn = document.getElementById("logoutBtn");
     const panelUsername = document.getElementById("panelUsername");
     const panelChips = document.getElementById("panelChips");
+    const statsPanel = document.getElementById("statsPanel");
+    const panelWins = document.getElementById("panelWins");
+    const panelLosses = document.getElementById("panelLosses");
+    const panelHands = document.getElementById("panelHands");
+    const panelBiggestPot = document.getElementById("panelBiggestPot");
+    const panelBestHand = document.getElementById("panelBestHand");
+    const leaderboardList = document.getElementById("leaderboardList");
+    const historyList = document.getElementById("historyList");
 
     const connectionStatus = document.getElementById("connectionStatus");
     const onlineCount = document.getElementById("onlineCount");
@@ -1525,12 +1724,57 @@ app.get("/", (req, res) => {
       if (currentUser) {
         authForm.style.display = "none";
         userCard.style.display = "flex";
+        statsPanel.style.display = "grid";
         panelUsername.textContent = currentUser.username;
         panelChips.textContent = currentUser.chips;
+        panelWins.textContent = currentUser.wins || 0;
+        panelLosses.textContent = currentUser.losses || 0;
+        panelHands.textContent = currentUser.hands_played || 0;
+        panelBiggestPot.textContent = currentUser.biggest_pot || 0;
+        panelBestHand.textContent = currentUser.best_hand || "None";
       } else {
         authForm.style.display = "grid";
         userCard.style.display = "none";
+        statsPanel.style.display = "none";
       }
+    }
+
+    async function loadLeaderboard() {
+      try {
+        const data = await api("/api/leaderboard");
+        leaderboardList.innerHTML = "";
+
+        data.leaderboard.forEach(function(user, index) {
+          const item = document.createElement("div");
+          item.className = "list-item";
+          item.innerHTML =
+            "#" + (index + 1) + " <strong>" + user.username + "</strong><br>" +
+            "Chips: " + user.chips + " | Wins: " + user.wins + " | Hands: " + user.hands_played;
+          leaderboardList.appendChild(item);
+        });
+      } catch (error) {}
+    }
+
+    async function loadHistory() {
+      try {
+        const data = await api("/api/history");
+        historyList.innerHTML = "";
+
+        data.history.forEach(function(hand) {
+          const item = document.createElement("div");
+          item.className = "list-item";
+          item.innerHTML =
+            "<strong>" + hand.room_name + "</strong><br>" +
+            "Pot: " + hand.pot + " | Winners: " + hand.winners + "<br>" +
+            "Hand: " + hand.winning_hand;
+          historyList.appendChild(item);
+        });
+      } catch (error) {}
+    }
+
+    async function refreshDashboard() {
+      await loadLeaderboard();
+      await loadHistory();
     }
 
     loginBtn.onclick = async function() {
@@ -1543,6 +1787,7 @@ app.get("/", (req, res) => {
         currentUser = data.user;
         updateUserPanel();
         addLog("Logged in as " + currentUser.username);
+        refreshDashboard().catch(() => {});
       } catch (error) {
         alert(error.message);
       }
@@ -1558,6 +1803,7 @@ app.get("/", (req, res) => {
         currentUser = data.user;
         updateUserPanel();
         addLog("Registered as " + currentUser.username);
+        refreshDashboard().catch(() => {});
       } catch (error) {
         alert(error.message);
       }
@@ -1749,6 +1995,7 @@ app.get("/", (req, res) => {
 
       try {
         await loadMe();
+        await refreshDashboard();
       } catch (e) {}
     });
 
@@ -1788,6 +2035,7 @@ app.get("/", (req, res) => {
 
     applyLanguage();
     loadMe().catch(() => {});
+    refreshDashboard().catch(() => {});
   </script>
 </body>
 </html>
