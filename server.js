@@ -36,13 +36,7 @@ const sessionMiddleware = session({
 app.use(express.json());
 app.use(sessionMiddleware);
 
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
-
+const io = new Server(server);
 io.engine.use(sessionMiddleware);
 
 async function initDb() {
@@ -73,14 +67,6 @@ async function updateUserChips(userId, chips) {
     "UPDATE users SET chips = $1 WHERE id = $2",
     [chips, userId]
   );
-}
-
-function requireLogin(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({ error: "Not logged in" });
-  }
-
-  next();
 }
 
 app.post("/api/register", async (req, res) => {
@@ -202,7 +188,12 @@ function createRoom(id, name) {
     deck: [],
     communityCards: [],
     pot: 0,
-    currentBet: 20,
+    currentBet: 0,
+    dealerIndex: -1,
+    smallBlindIndex: -1,
+    bigBlindIndex: -1,
+    smallBlindAmount: 10,
+    bigBlindAmount: 20,
     turnIndex: 0,
     phase: "waiting",
     status: "Waiting for players",
@@ -257,6 +248,7 @@ function getPublicRoomState(room) {
       chips: player.chips,
       seat: player.seat,
       bet: player.bet,
+      role: player.role || "",
       folded: player.folded,
       isTurn: player.isTurn,
       status: player.status
@@ -285,11 +277,13 @@ function resetRoomToWaiting(room) {
   room.deck = [];
   room.communityCards = [];
   room.pot = 0;
-  room.currentBet = 20;
+  room.currentBet = 0;
   room.turnIndex = 0;
   room.phase = "waiting";
   room.status = "Waiting for players";
   room.handStarted = false;
+  room.smallBlindIndex = -1;
+  room.bigBlindIndex = -1;
 
   room.players.forEach((player) => {
     player.cards = [];
@@ -297,6 +291,8 @@ function resetRoomToWaiting(room) {
     player.folded = false;
     player.isTurn = false;
     player.status = "Waiting";
+    player.role = "";
+    player.hasActed = false;
   });
 }
 
@@ -318,6 +314,10 @@ function removePlayer(socketId) {
           room.turnIndex = 0;
         }
 
+        if (room.dealerIndex >= room.players.length) {
+          room.dealerIndex = -1;
+        }
+
         room.status = removedPlayer.name + " left the table";
       }
 
@@ -328,9 +328,100 @@ function removePlayer(socketId) {
   return null;
 }
 
-function startHand(room) {
-  if (room.players.length < 2) {
-    room.status = "Need at least 2 players";
+function getNextPlayerIndex(room, fromIndex) {
+  if (!room.players.length) return 0;
+
+  for (let i = 1; i <= room.players.length; i++) {
+    const index = (fromIndex + i + room.players.length) % room.players.length;
+    const player = room.players[index];
+
+    if (player && player.chips > 0) {
+      return index;
+    }
+  }
+
+  return 0;
+}
+
+function clearPlayerRoles(room) {
+  room.players.forEach((player) => {
+    player.role = "";
+  });
+}
+
+function setupDealerAndBlinds(room) {
+  clearPlayerRoles(room);
+
+  room.dealerIndex = getNextPlayerIndex(room, room.dealerIndex);
+
+  if (room.players.length === 2) {
+    room.smallBlindIndex = room.dealerIndex;
+    room.bigBlindIndex = getNextPlayerIndex(room, room.smallBlindIndex);
+  } else {
+    room.smallBlindIndex = getNextPlayerIndex(room, room.dealerIndex);
+    room.bigBlindIndex = getNextPlayerIndex(room, room.smallBlindIndex);
+  }
+
+  if (room.players[room.dealerIndex]) {
+    room.players[room.dealerIndex].role = "D";
+  }
+
+  if (room.players[room.smallBlindIndex]) {
+    room.players[room.smallBlindIndex].role = room.players[room.smallBlindIndex].role
+      ? room.players[room.smallBlindIndex].role + " / SB"
+      : "SB";
+  }
+
+  if (room.players[room.bigBlindIndex]) {
+    room.players[room.bigBlindIndex].role = "BB";
+  }
+}
+
+async function postBlind(room, playerIndex, amount, label) {
+  const player = room.players[playerIndex];
+
+  if (!player) {
+    return {
+      player: null,
+      amount: 0,
+      label
+    };
+  }
+
+  const blindAmount = Math.min(player.chips, amount);
+
+  player.chips -= blindAmount;
+  player.bet += blindAmount;
+  player.status = label + " " + blindAmount;
+  player.hasActed = false;
+  room.pot += blindAmount;
+
+  await updateUserChips(player.userId, player.chips);
+
+  return {
+    player,
+    amount: blindAmount,
+    label
+  };
+}
+
+function bettingRoundComplete(room) {
+  const activePlayers = room.players.filter((player) => !player.folded && player.chips > 0);
+
+  if (activePlayers.length <= 1) {
+    return true;
+  }
+
+  return activePlayers.every((player) => {
+    return player.hasActed && player.bet >= room.currentBet;
+  });
+}
+
+async function startHand(room) {
+  const playablePlayers = room.players.filter((player) => player.chips > 0);
+
+  if (playablePlayers.length < 2) {
+    room.status = "Need at least 2 players with chips";
     room.phase = "waiting";
     room.handStarted = false;
     return;
@@ -339,19 +430,52 @@ function startHand(room) {
   room.deck = shuffle(createDeck());
   room.communityCards = [];
   room.pot = 0;
-  room.currentBet = 20;
+  room.currentBet = room.bigBlindAmount;
   room.phase = "preflop";
   room.handStarted = true;
-  room.turnIndex = 0;
   room.status = "New hand started";
 
-  room.players.forEach((player, index) => {
-    player.cards = [room.deck.pop(), room.deck.pop()];
+  room.players.forEach((player) => {
+    player.cards = player.chips > 0 ? [room.deck.pop(), room.deck.pop()] : [];
     player.bet = 0;
-    player.folded = false;
-    player.status = "In hand";
-    player.isTurn = index === room.turnIndex;
+    player.folded = player.chips <= 0;
+    player.status = player.chips > 0 ? "In hand" : "No chips";
+    player.isTurn = false;
+    player.hasActed = false;
+    player.role = "";
   });
+
+  setupDealerAndBlinds(room);
+
+  const smallBlind = await postBlind(
+    room,
+    room.smallBlindIndex,
+    room.smallBlindAmount,
+    "Small Blind"
+  );
+
+  const bigBlind = await postBlind(
+    room,
+    room.bigBlindIndex,
+    room.bigBlindAmount,
+    "Big Blind"
+  );
+
+  room.currentBet = Math.max(smallBlind.amount, bigBlind.amount);
+
+  room.turnIndex = getNextPlayerIndex(room, room.bigBlindIndex);
+
+  const sbName = smallBlind.player ? smallBlind.player.name : "Unknown";
+  const bbName = bigBlind.player ? bigBlind.player.name : "Unknown";
+
+  room.status =
+    sbName +
+    " posts SB " +
+    smallBlind.amount +
+    ", " +
+    bbName +
+    " posts BB " +
+    bigBlind.amount;
 
   setCurrentTurn(room);
 }
@@ -415,13 +539,14 @@ function advancePhase(room) {
     return;
   }
 
-  room.currentBet = 20;
+  room.currentBet = 0;
 
   room.players.forEach((player) => {
     player.bet = 0;
+    player.hasActed = false;
   });
 
-  room.turnIndex = 0;
+  room.turnIndex = getNextPlayerIndex(room, room.dealerIndex);
   setCurrentTurn(room);
 }
 
@@ -676,9 +801,9 @@ async function finishHand(room) {
 
   emitRoom(room);
 
-  setTimeout(() => {
-    if (room.players.length >= 2) {
-      startHand(room);
+  setTimeout(async () => {
+    if (room.players.filter((player) => player.chips > 0).length >= 2) {
+      await startHand(room);
       emitRoom(room);
     } else {
       resetRoomToWaiting(room);
@@ -995,6 +1120,17 @@ app.get("/", (req, res) => {
       white-space: nowrap;
     }
 
+    .role-badge {
+      display: inline-block;
+      margin-top: 3px;
+      background: #facc15;
+      color: #111827;
+      border-radius: 999px;
+      padding: 3px 7px;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
     .chips { margin-top: 4px; color: #facc15; font-size: 12px; }
 
     .bet { margin-top: 2px; color: #93c5fd; font-size: 11px; }
@@ -1149,7 +1285,7 @@ app.get("/", (req, res) => {
   <div class="actions">
     <button class="btn start" id="startBtn" disabled>Start</button>
     <button class="btn fold" id="foldBtn" disabled>Fold</button>
-    <button class="btn call" id="callBtn" disabled>Call</button>
+    <button class="btn call" id="callBtn" disabled>Call / Check</button>
     <button class="btn raise" id="raiseBtn" disabled>Raise</button>
   </div>
 
@@ -1161,7 +1297,6 @@ app.get("/", (req, res) => {
     let currentUser = null;
     let currentRoomId = null;
     let joined = false;
-    let mySocketId = null;
     let latestRoom = null;
     let currentLang = localStorage.getItem("pokerLang") || "en";
 
@@ -1174,14 +1309,16 @@ app.get("/", (req, res) => {
         login: "Login",
         register: "Register",
         logout: "Logout",
-        welcome: "Welcome",
-        chips: "Chips",
         needLogin: "Please login or register first.",
         joined: "You joined",
-        raiseAmount: "Raise amount:",
+        raiseAmount: "Raise to amount:",
         you: "You",
         bet: "Bet",
-        pot: "POT"
+        pot: "POT",
+        callCheck: "Call / Check",
+        start: "Start",
+        fold: "Fold",
+        raise: "Raise"
       },
       fa: {
         langButton: "EN",
@@ -1191,14 +1328,16 @@ app.get("/", (req, res) => {
         login: "ورود",
         register: "ثبت‌نام",
         logout: "خروج",
-        welcome: "خوش آمدی",
-        chips: "چیپ‌ها",
         needLogin: "اول وارد حساب شو یا ثبت‌نام کن.",
         joined: "وارد شدی به",
-        raiseAmount: "مقدار افزایش:",
+        raiseAmount: "افزایش تا مبلغ:",
         you: "شما",
         bet: "شرط",
-        pot: "پات"
+        pot: "پات",
+        callCheck: "کال / چک",
+        start: "شروع",
+        fold: "انصراف",
+        raise: "افزایش"
       }
     };
 
@@ -1244,12 +1383,14 @@ app.get("/", (req, res) => {
       loginBtn.textContent = tr().login;
       registerBtn.textContent = tr().register;
       logoutBtn.textContent = tr().logout;
+      startBtn.textContent = tr().start;
+      foldBtn.textContent = tr().fold;
+      callBtn.textContent = tr().callCheck;
+      raiseBtn.textContent = tr().raise;
 
       if (!joined) {
         turnStatus.textContent = tr().loginFirst;
       }
-
-      updateUserPanel();
 
       if (latestRoom) {
         updateTableText(latestRoom);
@@ -1405,10 +1546,12 @@ app.get("/", (req, res) => {
 
         const initial = player.name ? player.name.charAt(0).toUpperCase() : "?";
         const youLabel = currentUser && player.userId === currentUser.id ? " (" + tr().you + ")" : "";
+        const roleHtml = player.role ? '<div class="role-badge">' + player.role + '</div>' : "";
 
         el.innerHTML =
           '<div class="avatar">' + initial + '</div>' +
           '<div class="player-name">' + player.name + youLabel + '</div>' +
+          roleHtml +
           '<div class="chips">🟡 ' + player.chips + '</div>' +
           '<div class="bet">' + tr().bet + ': ' + player.bet + '</div>';
 
@@ -1463,7 +1606,6 @@ app.get("/", (req, res) => {
     }
 
     socket.on("connect", function() {
-      mySocketId = socket.id;
       connectionStatus.textContent = "Connected";
       connectionStatus.style.color = "#22c55e";
       addLog("Connected.");
@@ -1605,6 +1747,11 @@ io.on("connection", (socket) => {
         return;
       }
 
+      if (user.chips <= 0) {
+        socket.emit("gameMessage", "You do not have enough chips to sit.");
+        return;
+      }
+
       const player = {
         socketId: socket.id,
         userId: user.id,
@@ -1613,8 +1760,10 @@ io.on("connection", (socket) => {
         seat: room.players.length,
         cards: [],
         bet: 0,
+        role: "",
         folded: false,
         isTurn: false,
+        hasActed: false,
         status: "Waiting"
       };
 
@@ -1633,26 +1782,31 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("startHand", ({ roomId }) => {
-    const room = rooms[roomId];
+  socket.on("startHand", async ({ roomId }) => {
+    try {
+      const room = rooms[roomId];
 
-    if (!room) return;
+      if (!room) return;
 
-    const player = room.players.find((p) => p.socketId === socket.id);
+      const player = room.players.find((p) => p.socketId === socket.id);
 
-    if (!player) {
-      socket.emit("gameMessage", "Join a room first.");
-      return;
+      if (!player) {
+        socket.emit("gameMessage", "Join a room first.");
+        return;
+      }
+
+      if (room.players.filter((p) => p.chips > 0).length < 2) {
+        socket.emit("gameMessage", "Need at least 2 players with chips to start.");
+        return;
+      }
+
+      await startHand(room);
+      io.to(room.id).emit("gameMessage", room.status);
+      emitRoom(room);
+    } catch (error) {
+      console.error("Start hand error:", error);
+      socket.emit("gameMessage", "Failed to start hand.");
     }
-
-    if (room.players.length < 2) {
-      socket.emit("gameMessage", "Need at least 2 players to start.");
-      return;
-    }
-
-    startHand(room);
-    io.to(room.id).emit("gameMessage", "New hand started.");
-    emitRoom(room);
   });
 
   socket.on("playerAction", async ({ roomId, action, amount }) => {
@@ -1680,6 +1834,7 @@ io.on("connection", (socket) => {
 
       if (action === "Fold") {
         player.folded = true;
+        player.hasActed = true;
         player.status = "Folded";
         room.status = player.name + " folded";
         io.to(room.id).emit("gameMessage", player.name + " folded.");
@@ -1689,7 +1844,7 @@ io.on("connection", (socket) => {
       }
 
       if (action === "Call") {
-        const callAmount = room.currentBet;
+        const callAmount = Math.max(0, room.currentBet - player.bet);
 
         if (player.chips < callAmount) {
           socket.emit("gameMessage", "Not enough chips.");
@@ -1699,17 +1854,21 @@ io.on("connection", (socket) => {
         player.chips -= callAmount;
         player.bet += callAmount;
         room.pot += callAmount;
+        player.hasActed = true;
 
         await updateUserChips(player.userId, player.chips);
 
-        player.status = "Called";
-        room.status = player.name + " called " + callAmount;
+        if (callAmount === 0) {
+          player.status = "Checked";
+          room.status = player.name + " checked";
+          io.to(room.id).emit("gameMessage", player.name + " checked.");
+        } else {
+          player.status = "Called";
+          room.status = player.name + " called " + callAmount;
+          io.to(room.id).emit("gameMessage", player.name + " called " + callAmount + ".");
+        }
 
-        io.to(room.id).emit("gameMessage", player.name + " called " + callAmount + ".");
-
-        const activePlayers = room.players.filter((p) => !p.folded);
-
-        if (activePlayers.every((p) => p.bet >= room.currentBet)) {
+        if (bettingRoundComplete(room)) {
           advancePhase(room);
         } else {
           nextTurn(room);
@@ -1720,29 +1879,39 @@ io.on("connection", (socket) => {
       }
 
       if (action === "Raise") {
-        const raiseAmount = Number(amount);
+        const raiseToAmount = Number(amount);
 
-        if (!Number.isFinite(raiseAmount) || raiseAmount <= room.currentBet) {
+        if (!Number.isFinite(raiseToAmount) || raiseToAmount <= room.currentBet) {
           socket.emit("gameMessage", "Raise must be higher than current bet.");
           return;
         }
 
-        if (player.chips < raiseAmount) {
+        const neededAmount = raiseToAmount - player.bet;
+
+        if (player.chips < neededAmount) {
           socket.emit("gameMessage", "Not enough chips.");
           return;
         }
 
-        player.chips -= raiseAmount;
-        player.bet += raiseAmount;
-        room.pot += raiseAmount;
-        room.currentBet = raiseAmount;
+        player.chips -= neededAmount;
+        player.bet += neededAmount;
+        room.pot += neededAmount;
+        room.currentBet = raiseToAmount;
+
+        room.players.forEach((p) => {
+          if (!p.folded && p.chips > 0) {
+            p.hasActed = false;
+          }
+        });
+
+        player.hasActed = true;
 
         await updateUserChips(player.userId, player.chips);
 
         player.status = "Raised";
-        room.status = player.name + " raised to " + raiseAmount;
+        room.status = player.name + " raised to " + raiseToAmount;
 
-        io.to(room.id).emit("gameMessage", player.name + " raised to " + raiseAmount + ".");
+        io.to(room.id).emit("gameMessage", player.name + " raised to " + raiseToAmount + ".");
 
         nextTurn(room);
         emitRoom(room);
