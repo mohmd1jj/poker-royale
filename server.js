@@ -99,11 +99,7 @@ app.post("/api/register", async (req, res) => {
     );
 
     req.session.userId = result.rows[0].id;
-
-    res.json({
-      ok: true,
-      user: result.rows[0]
-    });
+    res.json({ ok: true, user: result.rows[0] });
   } catch (error) {
     console.error("Register error:", error);
     res.status(500).json({ error: "Register failed." });
@@ -136,11 +132,7 @@ app.post("/api/login", async (req, res) => {
 
     res.json({
       ok: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        chips: user.chips
-      }
+      user: { id: user.id, username: user.username, chips: user.chips }
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -149,9 +141,7 @@ app.post("/api/login", async (req, res) => {
 });
 
 app.post("/api/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.json({ ok: true });
-  });
+  req.session.destroy(() => res.json({ ok: true }));
 });
 
 app.get("/api/me", async (req, res) => {
@@ -248,8 +238,10 @@ function getPublicRoomState(room) {
       chips: player.chips,
       seat: player.seat,
       bet: player.bet,
+      committedThisHand: player.committedThisHand || 0,
       role: player.role || "",
       folded: player.folded,
+      allIn: player.allIn || false,
       isTurn: player.isTurn,
       status: player.status
     })),
@@ -264,10 +256,7 @@ function getPublicRoomState(room) {
 function findPlayerLocation(socketId) {
   for (const room of Object.values(rooms)) {
     const player = room.players.find((p) => p.socketId === socketId);
-
-    if (player) {
-      return { room, player };
-    }
+    if (player) return { room, player };
   }
 
   return null;
@@ -288,7 +277,9 @@ function resetRoomToWaiting(room) {
   room.players.forEach((player) => {
     player.cards = [];
     player.bet = 0;
+    player.committedThisHand = 0;
     player.folded = false;
+    player.allIn = false;
     player.isTurn = false;
     player.status = "Waiting";
     player.role = "";
@@ -310,14 +301,8 @@ function removePlayer(socketId) {
       if (room.players.length < 2) {
         resetRoomToWaiting(room);
       } else {
-        if (room.turnIndex >= room.players.length) {
-          room.turnIndex = 0;
-        }
-
-        if (room.dealerIndex >= room.players.length) {
-          room.dealerIndex = -1;
-        }
-
+        if (room.turnIndex >= room.players.length) room.turnIndex = 0;
+        if (room.dealerIndex >= room.players.length) room.dealerIndex = -1;
         room.status = removedPlayer.name + " left the table";
       }
 
@@ -335,12 +320,37 @@ function getNextPlayerIndex(room, fromIndex) {
     const index = (fromIndex + i + room.players.length) % room.players.length;
     const player = room.players[index];
 
-    if (player && player.chips > 0) {
+    if (player && player.chips > 0) return index;
+  }
+
+  return 0;
+}
+
+function getNextActionIndex(room, fromIndex) {
+  if (!room.players.length) return 0;
+
+  for (let i = 1; i <= room.players.length; i++) {
+    const index = (fromIndex + i + room.players.length) % room.players.length;
+    const player = room.players[index];
+
+    if (player && !player.folded && !player.allIn && player.chips > 0) {
       return index;
     }
   }
 
-  return 0;
+  return -1;
+}
+
+function activePlayers(room) {
+  return room.players.filter((player) => !player.folded);
+}
+
+function playersWhoCanAct(room) {
+  return room.players.filter((player) => !player.folded && !player.allIn && player.chips > 0);
+}
+
+function onlyOnePlayerLeft(room) {
+  return activePlayers(room).length <= 1;
 }
 
 function clearPlayerRoles(room) {
@@ -377,42 +387,47 @@ function setupDealerAndBlinds(room) {
   }
 }
 
+async function takeChips(player, amount) {
+  const realAmount = Math.max(0, Math.min(player.chips, amount));
+
+  player.chips -= realAmount;
+  player.bet += realAmount;
+  player.committedThisHand += realAmount;
+
+  if (player.chips === 0) {
+    player.allIn = true;
+  }
+
+  await updateUserChips(player.userId, player.chips);
+  return realAmount;
+}
+
 async function postBlind(room, playerIndex, amount, label) {
   const player = room.players[playerIndex];
 
   if (!player) {
-    return {
-      player: null,
-      amount: 0,
-      label
-    };
+    return { player: null, amount: 0, label };
   }
 
-  const blindAmount = Math.min(player.chips, amount);
+  const blindAmount = await takeChips(player, amount);
 
-  player.chips -= blindAmount;
-  player.bet += blindAmount;
   player.status = label + " " + blindAmount;
   player.hasActed = false;
   room.pot += blindAmount;
 
-  await updateUserChips(player.userId, player.chips);
-
-  return {
-    player,
-    amount: blindAmount,
-    label
-  };
+  return { player, amount: blindAmount, label };
 }
 
 function bettingRoundComplete(room) {
-  const activePlayers = room.players.filter((player) => !player.folded && player.chips > 0);
+  if (onlyOnePlayerLeft(room)) return true;
 
-  if (activePlayers.length <= 1) {
+  const canAct = playersWhoCanAct(room);
+
+  if (canAct.length === 0) {
     return true;
   }
 
-  return activePlayers.every((player) => {
+  return canAct.every((player) => {
     return player.hasActed && player.bet >= room.currentBet;
   });
 }
@@ -438,7 +453,9 @@ async function startHand(room) {
   room.players.forEach((player) => {
     player.cards = player.chips > 0 ? [room.deck.pop(), room.deck.pop()] : [];
     player.bet = 0;
+    player.committedThisHand = 0;
     player.folded = player.chips <= 0;
+    player.allIn = false;
     player.status = player.chips > 0 ? "In hand" : "No chips";
     player.isTurn = false;
     player.hasActed = false;
@@ -447,23 +464,11 @@ async function startHand(room) {
 
   setupDealerAndBlinds(room);
 
-  const smallBlind = await postBlind(
-    room,
-    room.smallBlindIndex,
-    room.smallBlindAmount,
-    "Small Blind"
-  );
-
-  const bigBlind = await postBlind(
-    room,
-    room.bigBlindIndex,
-    room.bigBlindAmount,
-    "Big Blind"
-  );
+  const smallBlind = await postBlind(room, room.smallBlindIndex, room.smallBlindAmount, "Small Blind");
+  const bigBlind = await postBlind(room, room.bigBlindIndex, room.bigBlindAmount, "Big Blind");
 
   room.currentBet = Math.max(smallBlind.amount, bigBlind.amount);
-
-  room.turnIndex = getNextPlayerIndex(room, room.bigBlindIndex);
+  room.turnIndex = getNextActionIndex(room, room.bigBlindIndex);
 
   const sbName = smallBlind.player ? smallBlind.player.name : "Unknown";
   const bbName = bigBlind.player ? bigBlind.player.name : "Unknown";
@@ -485,22 +490,24 @@ function setCurrentTurn(room) {
     player.isTurn = false;
   });
 
-  const activePlayers = room.players.filter((player) => !player.folded && player.chips > 0);
-
-  if (activePlayers.length <= 1) {
+  if (onlyOnePlayerLeft(room)) {
     finishHand(room);
     return;
   }
 
-  let safety = 0;
+  if (playersWhoCanAct(room).length === 0) {
+    advancePhase(room);
+    return;
+  }
 
-  while (
-    room.players[room.turnIndex] &&
-    (room.players[room.turnIndex].folded || room.players[room.turnIndex].chips <= 0) &&
-    safety < room.players.length
+  if (
+    room.turnIndex === -1 ||
+    !room.players[room.turnIndex] ||
+    room.players[room.turnIndex].folded ||
+    room.players[room.turnIndex].allIn ||
+    room.players[room.turnIndex].chips <= 0
   ) {
-    room.turnIndex = (room.turnIndex + 1) % room.players.length;
-    safety++;
+    room.turnIndex = getNextActionIndex(room, room.turnIndex);
   }
 
   const currentPlayer = room.players[room.turnIndex];
@@ -517,11 +524,28 @@ function nextTurn(room) {
     return;
   }
 
-  room.turnIndex = (room.turnIndex + 1) % room.players.length;
+  room.turnIndex = getNextActionIndex(room, room.turnIndex);
   setCurrentTurn(room);
 }
 
+function dealRemainingCommunityCards(room) {
+  while (room.communityCards.length < 5 && room.deck.length > 0) {
+    room.communityCards.push(room.deck.pop());
+  }
+}
+
 function advancePhase(room) {
+  if (onlyOnePlayerLeft(room)) {
+    finishHand(room);
+    return;
+  }
+
+  if (playersWhoCanAct(room).length === 0) {
+    dealRemainingCommunityCards(room);
+    finishHand(room);
+    return;
+  }
+
   if (room.phase === "preflop") {
     room.communityCards.push(room.deck.pop(), room.deck.pop(), room.deck.pop());
     room.phase = "flop";
@@ -546,8 +570,28 @@ function advancePhase(room) {
     player.hasActed = false;
   });
 
-  room.turnIndex = getNextPlayerIndex(room, room.dealerIndex);
+  if (playersWhoCanAct(room).length === 0) {
+    dealRemainingCommunityCards(room);
+    finishHand(room);
+    return;
+  }
+
+  room.turnIndex = getNextActionIndex(room, room.dealerIndex);
   setCurrentTurn(room);
+}
+
+async function proceedAfterAction(room) {
+  if (onlyOnePlayerLeft(room)) {
+    await finishHand(room);
+    return;
+  }
+
+  if (bettingRoundComplete(room)) {
+    advancePhase(room);
+    return;
+  }
+
+  nextTurn(room);
 }
 
 const HAND_RANKS = {
@@ -583,30 +627,21 @@ function parseCard(card) {
   const suit = card.slice(-1);
   const rank = card.slice(0, -1);
 
-  return {
-    card,
-    rank,
-    suit,
-    value: RANK_VALUES[rank]
-  };
+  return { card, rank, suit, value: RANK_VALUES[rank] };
 }
 
 function getCounts(values) {
   const counts = {};
-
   values.forEach((value) => {
     counts[value] = (counts[value] || 0) + 1;
   });
-
   return counts;
 }
 
 function getStraightHigh(values) {
   const unique = [...new Set(values)].sort((a, b) => b - a);
 
-  if (unique.includes(14)) {
-    unique.push(1);
-  }
+  if (unique.includes(14)) unique.push(1);
 
   for (let i = 0; i <= unique.length - 5; i++) {
     const slice = unique.slice(i, i + 5);
@@ -630,10 +665,7 @@ function evaluateSevenCards(cards) {
   const counts = getCounts(values);
 
   const groups = Object.entries(counts)
-    .map(([value, count]) => ({
-      value: Number(value),
-      count
-    }))
+    .map(([value, count]) => ({ value: Number(value), count }))
     .sort((a, b) => {
       if (b.count !== a.count) return b.count - a.count;
       return b.value - a.value;
@@ -650,7 +682,10 @@ function evaluateSevenCards(cards) {
 
   Object.values(suits).forEach((suitValues) => {
     if (suitValues.length >= 5) {
-      flushValues = suitValues.sort((a, b) => b - a);
+      const sortedSuitValues = suitValues.sort((a, b) => b - a);
+      if (!flushValues || sortedSuitValues[0] > flushValues[0]) {
+        flushValues = sortedSuitValues;
+      }
     }
   });
 
@@ -715,90 +750,138 @@ function evaluateSevenCards(cards) {
 }
 
 function compareHands(handA, handB) {
-  if (handA.rank !== handB.rank) {
-    return handA.rank - handB.rank;
-  }
+  if (handA.rank !== handB.rank) return handA.rank - handB.rank;
 
   for (let i = 0; i < Math.max(handA.values.length, handB.values.length); i++) {
     const valueA = handA.values[i] || 0;
     const valueB = handB.values[i] || 0;
 
-    if (valueA !== valueB) {
-      return valueA - valueB;
-    }
+    if (valueA !== valueB) return valueA - valueB;
   }
 
   return 0;
 }
 
-function findWinner(room) {
-  const activePlayers = room.players.filter((player) => !player.folded);
+function getPlayerHand(player, room) {
+  return evaluateSevenCards([...(player.cards || []), ...room.communityCards]);
+}
 
-  if (activePlayers.length === 0) return null;
+function getBestPlayersForPot(eligiblePlayers, room) {
+  let bestHand = null;
+  let winners = [];
 
-  let bestPlayer = activePlayers[0];
-  let bestHand = evaluateSevenCards([...(bestPlayer.cards || []), ...room.communityCards]);
+  eligiblePlayers.forEach((player) => {
+    const hand = getPlayerHand(player, room);
 
-  activePlayers.slice(1).forEach((player) => {
-    const playerHand = evaluateSevenCards([...(player.cards || []), ...room.communityCards]);
-
-    if (compareHands(playerHand, bestHand) > 0) {
-      bestPlayer = player;
-      bestHand = playerHand;
+    if (!bestHand || compareHands(hand, bestHand) > 0) {
+      bestHand = hand;
+      winners = [player];
+    } else if (compareHands(hand, bestHand) === 0) {
+      winners.push(player);
     }
   });
 
-  return {
-    player: bestPlayer,
-    hand: bestHand
-  };
+  return { winners, hand: bestHand };
+}
+
+function buildSidePots(room) {
+  const committedPlayers = room.players
+    .filter((player) => (player.committedThisHand || 0) > 0)
+    .map((player) => ({ player, committed: player.committedThisHand || 0 }))
+    .sort((a, b) => a.committed - b.committed);
+
+  const levels = [...new Set(committedPlayers.map((item) => item.committed))];
+  const sidePots = [];
+  let previousLevel = 0;
+
+  levels.forEach((level) => {
+    const contributors = room.players.filter((player) => (player.committedThisHand || 0) >= level);
+    const amount = (level - previousLevel) * contributors.length;
+    const eligiblePlayers = contributors.filter((player) => !player.folded);
+
+    if (amount > 0 && eligiblePlayers.length > 0) {
+      sidePots.push({ amount, eligiblePlayers });
+    }
+
+    previousLevel = level;
+  });
+
+  return sidePots;
+}
+
+function splitAmount(amount, winners) {
+  const baseShare = Math.floor(amount / winners.length);
+  let remainder = amount % winners.length;
+
+  return winners.map((winner) => {
+    const extra = remainder > 0 ? 1 : 0;
+    if (remainder > 0) remainder--;
+
+    return {
+      player: winner,
+      amount: baseShare + extra
+    };
+  });
 }
 
 async function finishHand(room) {
-  const activePlayers = room.players.filter((player) => !player.folded);
+  const remainingPlayers = room.players.filter((player) => !player.folded);
 
-  if (activePlayers.length === 0) {
+  if (remainingPlayers.length === 0) {
     resetRoomToWaiting(room);
     return;
   }
 
-  let result;
+  const resultMessages = [];
 
-  if (activePlayers.length === 1) {
-    result = {
-      player: activePlayers[0],
-      hand: { name: "Everyone else folded" }
-    };
+  if (remainingPlayers.length === 1) {
+    const winner = remainingPlayers[0];
+    winner.chips += room.pot;
+    resultMessages.push(winner.name + " wins " + room.pot + " because everyone else folded.");
   } else {
-    result = findWinner(room);
+    if (room.communityCards.length < 5) {
+      dealRemainingCommunityCards(room);
+    }
+
+    const sidePots = buildSidePots(room);
+
+    sidePots.forEach((sidePot, index) => {
+      const result = getBestPlayersForPot(sidePot.eligiblePlayers, room);
+      const payouts = splitAmount(sidePot.amount, result.winners);
+
+      payouts.forEach((payout) => {
+        payout.player.chips += payout.amount;
+      });
+
+      const winnerNames = result.winners.map((player) => player.name).join(" & ");
+      const potLabel = index === 0 ? "main pot" : "side pot " + index;
+
+      resultMessages.push(
+        winnerNames +
+        " win " +
+        sidePot.amount +
+        " from " +
+        potLabel +
+        " with " +
+        result.hand.name
+      );
+    });
   }
 
-  if (!result || !result.player) {
-    resetRoomToWaiting(room);
-    return;
-  }
-
-  const winner = result.player;
-  winner.chips += room.pot;
-
-  room.status = winner.name + " wins " + room.pot + " with " + result.hand.name;
+  room.status = resultMessages.join(" | ");
   room.phase = "showdown";
   room.handStarted = false;
 
   room.players.forEach((player) => {
     player.isTurn = false;
-    player.status = player.socketId === winner.socketId ? "Winner" : "Finished";
+    player.status = remainingPlayers.includes(player) ? "Showdown" : "Folded";
   });
 
   for (const player of room.players) {
     await updateUserChips(player.userId, player.chips);
   }
 
-  io.to(room.id).emit(
-    "gameMessage",
-    winner.name + " wins " + room.pot + " with " + result.hand.name + "."
-  );
-
+  io.to(room.id).emit("gameMessage", room.status);
   emitRoom(room);
 
   setTimeout(async () => {
@@ -913,7 +996,6 @@ app.get("/", (req, res) => {
     }
 
     .register-btn { background: #ca8a04; color: #111827; }
-
     .logout-btn { background: #991b1b; }
 
     .user-card {
@@ -974,7 +1056,6 @@ app.get("/", (req, res) => {
     }
 
     .room-title { font-weight: 900; margin-bottom: 5px; }
-
     .room-meta { color: #d1d5db; font-size: 12px; line-height: 1.55; }
 
     .poker-table {
@@ -1132,7 +1213,6 @@ app.get("/", (req, res) => {
     }
 
     .chips { margin-top: 4px; color: #facc15; font-size: 12px; }
-
     .bet { margin-top: 2px; color: #93c5fd; font-size: 11px; }
 
     .seat-0 { left: 50%; bottom: 24px; transform: translateX(-50%); }
@@ -1150,9 +1230,9 @@ app.get("/", (req, res) => {
       z-index: 2000;
       display: flex;
       justify-content: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
-      width: min(96%, 580px);
+      width: min(96%, 620px);
       background: rgba(0,0,0,0.5);
       border: 1px solid rgba(250,204,21,0.25);
       border-radius: 22px;
@@ -1163,12 +1243,12 @@ app.get("/", (req, res) => {
     .btn {
       border: none;
       border-radius: 999px;
-      padding: 12px 18px;
-      min-width: 92px;
+      padding: 12px 14px;
+      min-width: 78px;
       color: white;
       font-weight: 900;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .btn:disabled { opacity: 0.42; cursor: not-allowed; }
@@ -1176,6 +1256,7 @@ app.get("/", (req, res) => {
     .fold { background: #991b1b; }
     .call { background: #166534; }
     .raise { background: #ca8a04; color: #111827; }
+    .allin { background: #7c3aed; }
     .start { background: #2563eb; }
 
     .log {
@@ -1215,7 +1296,7 @@ app.get("/", (req, res) => {
       .seat-3 { right: 10px; top: 108px; }
       .seat-4 { right: 10px; bottom: 112px; }
       .seat-5 { left: 50%; top: 66px; transform: translateX(-50%); }
-      .btn { min-width: 75px; padding: 11px 12px; }
+      .btn { min-width: 68px; padding: 10px 10px; font-size: 12px; }
     }
   </style>
 </head>
@@ -1287,6 +1368,7 @@ app.get("/", (req, res) => {
     <button class="btn fold" id="foldBtn" disabled>Fold</button>
     <button class="btn call" id="callBtn" disabled>Call / Check</button>
     <button class="btn raise" id="raiseBtn" disabled>Raise</button>
+    <button class="btn allin" id="allInBtn" disabled>All-in</button>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -1314,11 +1396,13 @@ app.get("/", (req, res) => {
         raiseAmount: "Raise to amount:",
         you: "You",
         bet: "Bet",
+        committed: "Committed",
         pot: "POT",
         callCheck: "Call / Check",
         start: "Start",
         fold: "Fold",
-        raise: "Raise"
+        raise: "Raise",
+        allIn: "All-in"
       },
       fa: {
         langButton: "EN",
@@ -1333,11 +1417,13 @@ app.get("/", (req, res) => {
         raiseAmount: "افزایش تا مبلغ:",
         you: "شما",
         bet: "شرط",
+        committed: "کل شرط",
         pot: "پات",
         callCheck: "کال / چک",
         start: "شروع",
         fold: "انصراف",
-        raise: "افزایش"
+        raise: "افزایش",
+        allIn: "آل این"
       }
     };
 
@@ -1367,6 +1453,7 @@ app.get("/", (req, res) => {
     const foldBtn = document.getElementById("foldBtn");
     const callBtn = document.getElementById("callBtn");
     const raiseBtn = document.getElementById("raiseBtn");
+    const allInBtn = document.getElementById("allInBtn");
 
     function tr() {
       return text[currentLang];
@@ -1387,6 +1474,7 @@ app.get("/", (req, res) => {
       foldBtn.textContent = tr().fold;
       callBtn.textContent = tr().callCheck;
       raiseBtn.textContent = tr().raise;
+      allInBtn.textContent = tr().allIn;
 
       if (!joined) {
         turnStatus.textContent = tr().loginFirst;
@@ -1494,9 +1582,7 @@ app.get("/", (req, res) => {
     }
 
     function renderCard(card) {
-      if (!card) {
-        return '<div class="card back">★</div>';
-      }
+      if (!card) return '<div class="card back">★</div>';
 
       const redClass = cardIsRed(card) ? " red" : "";
       return '<div class="card' + redClass + '">' + card + '</div>';
@@ -1547,13 +1633,16 @@ app.get("/", (req, res) => {
         const initial = player.name ? player.name.charAt(0).toUpperCase() : "?";
         const youLabel = currentUser && player.userId === currentUser.id ? " (" + tr().you + ")" : "";
         const roleHtml = player.role ? '<div class="role-badge">' + player.role + '</div>' : "";
+        const allInHtml = player.allIn ? '<div class="role-badge">ALL-IN</div>' : "";
 
         el.innerHTML =
           '<div class="avatar">' + initial + '</div>' +
           '<div class="player-name">' + player.name + youLabel + '</div>' +
           roleHtml +
+          allInHtml +
           '<div class="chips">🟡 ' + player.chips + '</div>' +
-          '<div class="bet">' + tr().bet + ': ' + player.bet + '</div>';
+          '<div class="bet">' + tr().bet + ': ' + player.bet + '</div>' +
+          '<div class="bet">' + tr().committed + ': ' + player.committedThisHand + '</div>';
 
         playersEl.appendChild(el);
       });
@@ -1591,6 +1680,7 @@ app.get("/", (req, res) => {
         foldBtn.disabled = true;
         callBtn.disabled = true;
         raiseBtn.disabled = true;
+        allInBtn.disabled = true;
         return;
       }
 
@@ -1598,11 +1688,12 @@ app.get("/", (req, res) => {
         return player.userId === currentUser.id;
       });
 
-      const isMyTurn = me && me.isTurn && !me.folded && room.phase !== "waiting" && room.phase !== "showdown";
+      const isMyTurn = me && me.isTurn && !me.folded && !me.allIn && room.phase !== "waiting" && room.phase !== "showdown";
 
       foldBtn.disabled = !isMyTurn;
       callBtn.disabled = !isMyTurn;
       raiseBtn.disabled = !isMyTurn;
+      allInBtn.disabled = !isMyTurn;
     }
 
     socket.on("connect", function() {
@@ -1690,6 +1781,11 @@ app.get("/", (req, res) => {
       });
     };
 
+    allInBtn.onclick = function() {
+      if (!joined || !currentRoomId) return;
+      socket.emit("playerAction", { roomId: currentRoomId, action: "AllIn" });
+    };
+
     applyLanguage();
     loadMe().catch(() => {});
   </script>
@@ -1760,8 +1856,10 @@ io.on("connection", (socket) => {
         seat: room.players.length,
         cards: [],
         bet: 0,
+        committedThisHand: 0,
         role: "",
         folded: false,
+        allIn: false,
         isTurn: false,
         hasActed: false,
         status: "Waiting"
@@ -1832,48 +1930,44 @@ io.on("connection", (socket) => {
         return;
       }
 
+      if (player.allIn || player.folded) {
+        socket.emit("gameMessage", "You cannot act now.");
+        return;
+      }
+
       if (action === "Fold") {
         player.folded = true;
         player.hasActed = true;
         player.status = "Folded";
         room.status = player.name + " folded";
         io.to(room.id).emit("gameMessage", player.name + " folded.");
-        nextTurn(room);
+        await proceedAfterAction(room);
         emitRoom(room);
         return;
       }
 
       if (action === "Call") {
         const callAmount = Math.max(0, room.currentBet - player.bet);
+        const paidAmount = await takeChips(player, callAmount);
 
-        if (player.chips < callAmount) {
-          socket.emit("gameMessage", "Not enough chips.");
-          return;
-        }
-
-        player.chips -= callAmount;
-        player.bet += callAmount;
-        room.pot += callAmount;
+        room.pot += paidAmount;
         player.hasActed = true;
 
-        await updateUserChips(player.userId, player.chips);
-
-        if (callAmount === 0) {
+        if (paidAmount < callAmount && player.allIn) {
+          player.status = "All-in";
+          room.status = player.name + " calls all-in for " + paidAmount;
+          io.to(room.id).emit("gameMessage", player.name + " calls all-in for " + paidAmount + ".");
+        } else if (callAmount === 0) {
           player.status = "Checked";
           room.status = player.name + " checked";
           io.to(room.id).emit("gameMessage", player.name + " checked.");
         } else {
           player.status = "Called";
-          room.status = player.name + " called " + callAmount;
-          io.to(room.id).emit("gameMessage", player.name + " called " + callAmount + ".");
+          room.status = player.name + " called " + paidAmount;
+          io.to(room.id).emit("gameMessage", player.name + " called " + paidAmount + ".");
         }
 
-        if (bettingRoundComplete(room)) {
-          advancePhase(room);
-        } else {
-          nextTurn(room);
-        }
-
+        await proceedAfterAction(room);
         emitRoom(room);
         return;
       }
@@ -1888,32 +1982,65 @@ io.on("connection", (socket) => {
 
         const neededAmount = raiseToAmount - player.bet;
 
-        if (player.chips < neededAmount) {
-          socket.emit("gameMessage", "Not enough chips.");
+        if (neededAmount <= 0) {
+          socket.emit("gameMessage", "Invalid raise amount.");
           return;
         }
 
-        player.chips -= neededAmount;
-        player.bet += neededAmount;
-        room.pot += neededAmount;
+        if (player.chips < neededAmount) {
+          socket.emit("gameMessage", "Not enough chips. Use All-in instead.");
+          return;
+        }
+
+        const paidAmount = await takeChips(player, neededAmount);
+
+        room.pot += paidAmount;
         room.currentBet = raiseToAmount;
 
         room.players.forEach((p) => {
-          if (!p.folded && p.chips > 0) {
+          if (!p.folded && !p.allIn && p.chips > 0) {
             p.hasActed = false;
           }
         });
 
         player.hasActed = true;
-
-        await updateUserChips(player.userId, player.chips);
-
-        player.status = "Raised";
+        player.status = player.allIn ? "All-in Raise" : "Raised";
         room.status = player.name + " raised to " + raiseToAmount;
 
         io.to(room.id).emit("gameMessage", player.name + " raised to " + raiseToAmount + ".");
 
-        nextTurn(room);
+        await proceedAfterAction(room);
+        emitRoom(room);
+        return;
+      }
+
+      if (action === "AllIn") {
+        const allInBefore = player.chips;
+        const targetBet = player.bet + allInBefore;
+        const paidAmount = await takeChips(player, allInBefore);
+
+        room.pot += paidAmount;
+        player.hasActed = true;
+        player.status = "All-in";
+
+        if (targetBet > room.currentBet) {
+          room.currentBet = targetBet;
+
+          room.players.forEach((p) => {
+            if (!p.folded && !p.allIn && p.chips > 0) {
+              p.hasActed = false;
+            }
+          });
+
+          player.hasActed = true;
+          room.status = player.name + " goes all-in raising to " + targetBet;
+          io.to(room.id).emit("gameMessage", player.name + " goes all-in raising to " + targetBet + ".");
+        } else {
+          room.status = player.name + " goes all-in for " + paidAmount;
+          io.to(room.id).emit("gameMessage", player.name + " goes all-in for " + paidAmount + ".");
+        }
+
+        await proceedAfterAction(room);
         emitRoom(room);
         return;
       }
