@@ -16,13 +16,17 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+if (!process.env.SESSION_SECRET) {
+  console.warn("SESSION_SECRET is not set. Add it in Railway Variables for better security.");
+}
+
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
 });
 
 const sessionMiddleware = session({
-  secret: process.env.SESSION_SECRET || "poker-royale-secret-change-later",
+  secret: process.env.SESSION_SECRET || "poker-royale-dev-secret",
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -39,6 +43,15 @@ app.use(sessionMiddleware);
 const io = new Server(server);
 io.engine.use(sessionMiddleware);
 
+const DAILY_BONUS_AMOUNT = 500;
+const RELOAD_CHIPS_AMOUNT = 1000;
+const RELOAD_MINIMUM_CHIPS = 100;
+const BONUS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const RELOAD_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const RECONNECT_GRACE_MS = 45000;
+
+const disconnectTimers = new Map();
+
 async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -52,6 +65,8 @@ async function initDb() {
       biggest_pot INTEGER NOT NULL DEFAULT 0,
       best_hand VARCHAR(64) DEFAULT 'None',
       best_hand_rank INTEGER NOT NULL DEFAULT 0,
+      last_bonus_at TIMESTAMP NULL,
+      last_reload_at TIMESTAMP NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -62,6 +77,8 @@ async function initDb() {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS biggest_pot INTEGER NOT NULL DEFAULT 0");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS best_hand VARCHAR(64) DEFAULT 'None'");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS best_hand_rank INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_bonus_at TIMESTAMP NULL");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_reload_at TIMESTAMP NULL");
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS game_history (
@@ -83,7 +100,10 @@ async function initDb() {
 
 async function getUserById(id) {
   const result = await pool.query(
-    "SELECT id, username, chips, wins, losses, hands_played, biggest_pot, best_hand FROM users WHERE id = $1",
+    `SELECT id, username, chips, wins, losses, hands_played, biggest_pot, best_hand,
+            last_bonus_at, last_reload_at
+     FROM users
+     WHERE id = $1`,
     [id]
   );
 
@@ -91,10 +111,65 @@ async function getUserById(id) {
 }
 
 async function updateUserChips(userId, chips) {
-  await pool.query(
-    "UPDATE users SET chips = $1 WHERE id = $2",
-    [chips, userId]
+  await pool.query("UPDATE users SET chips = $1 WHERE id = $2", [chips, userId]);
+}
+
+function getSessionUserId(req) {
+  return req.session && req.session.userId ? req.session.userId : null;
+}
+
+function isCooldownReady(lastDate, cooldownMs) {
+  if (!lastDate) return { ready: true, remainingMs: 0 };
+
+  const last = new Date(lastDate).getTime();
+  const now = Date.now();
+  const elapsed = now - last;
+
+  if (elapsed >= cooldownMs) {
+    return { ready: true, remainingMs: 0 };
+  }
+
+  return { ready: false, remainingMs: cooldownMs - elapsed };
+}
+
+function formatRemaining(ms) {
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  const minutes = Math.ceil((ms % (60 * 60 * 1000)) / (60 * 1000));
+  return hours + "h " + minutes + "m";
+}
+
+function findPlayerByUserId(userId) {
+  for (const room of Object.values(rooms)) {
+    const player = room.players.find((p) => p.userId === userId);
+    if (player) return { room, player };
+  }
+
+  return null;
+}
+
+function isUserInActiveHand(userId) {
+  const location = findPlayerByUserId(userId);
+  if (!location) return false;
+
+  const { room, player } = location;
+
+  return (
+    room.handStarted &&
+    !player.waitingNextHand &&
+    !player.folded &&
+    room.phase !== "waiting" &&
+    room.phase !== "showdown"
   );
+}
+
+function syncOnlineUserChips(userId, chips) {
+  for (const room of Object.values(rooms)) {
+    const player = room.players.find((p) => p.userId === userId);
+    if (player && !room.handStarted) {
+      player.chips = chips;
+      emitRoom(room);
+    }
+  }
 }
 
 async function recordGameHistory(room, summary, winners, winningHandName) {
@@ -128,8 +203,13 @@ async function updateUserStatsAfterHand(room, winners, bestHandsByUserId, bigges
   const winnerIds = new Set(winners.map((player) => player.userId));
 
   for (const player of room.players) {
+    if (player.waitingNextHand) continue;
+
     const won = winnerIds.has(player.userId);
-    const bestHand = bestHandsByUserId[player.userId] || { name: "Everyone else folded", rank: 0 };
+    const bestHand = bestHandsByUserId[player.userId] || {
+      name: "Everyone else folded",
+      rank: 0
+    };
 
     await pool.query(
       `UPDATE users
@@ -185,7 +265,11 @@ app.post("/api/register", async (req, res) => {
     );
 
     req.session.userId = result.rows[0].id;
-    res.json({ ok: true, user: result.rows[0] });
+
+    res.json({
+      ok: true,
+      user: result.rows[0]
+    });
   } catch (error) {
     console.error("Register error:", error);
     res.status(500).json({ error: "Register failed." });
@@ -198,7 +282,10 @@ app.post("/api/login", async (req, res) => {
     const password = String(req.body.password || "");
 
     const result = await pool.query(
-      "SELECT id, username, password_hash, chips, wins, losses, hands_played, biggest_pot, best_hand FROM users WHERE LOWER(username) = LOWER($1)",
+      `SELECT id, username, password_hash, chips, wins, losses, hands_played,
+              biggest_pot, best_hand, last_bonus_at, last_reload_at
+       FROM users
+       WHERE LOWER(username) = LOWER($1)`,
       [username]
     );
 
@@ -216,10 +303,9 @@ app.post("/api/login", async (req, res) => {
 
     req.session.userId = user.id;
 
-    res.json({
-      ok: true,
-      user: { id: user.id, username: user.username, chips: user.chips, wins: user.wins, losses: user.losses, hands_played: user.hands_played, biggest_pot: user.biggest_pot, best_hand: user.best_hand }
-    });
+    delete user.password_hash;
+
+    res.json({ ok: true, user });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: "Login failed." });
@@ -227,16 +313,20 @@ app.post("/api/login", async (req, res) => {
 });
 
 app.post("/api/logout", (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  req.session.destroy(() => {
+    res.json({ ok: true });
+  });
 });
 
 app.get("/api/me", async (req, res) => {
   try {
-    if (!req.session.userId) {
+    const userId = getSessionUserId(req);
+
+    if (!userId) {
       return res.json({ user: null });
     }
 
-    const user = await getUserById(req.session.userId);
+    const user = await getUserById(userId);
 
     if (!user) {
       req.session.destroy(() => {});
@@ -247,6 +337,104 @@ app.get("/api/me", async (req, res) => {
   } catch (error) {
     console.error("Me error:", error);
     res.status(500).json({ error: "Failed to load user." });
+  }
+});
+
+app.post("/api/daily-bonus", async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Login first." });
+    }
+
+    if (isUserInActiveHand(userId)) {
+      return res.status(400).json({ error: "You cannot claim bonus during an active hand." });
+    }
+
+    const user = await getUserById(userId);
+
+    if (!user) {
+      return res.status(401).json({ error: "Login again." });
+    }
+
+    const cooldown = isCooldownReady(user.last_bonus_at, BONUS_COOLDOWN_MS);
+
+    if (!cooldown.ready) {
+      return res.status(400).json({
+        error: "Daily bonus is not ready. Try again in " + formatRemaining(cooldown.remainingMs) + "."
+      });
+    }
+
+    const newChips = user.chips + DAILY_BONUS_AMOUNT;
+
+    await pool.query(
+      "UPDATE users SET chips = $1, last_bonus_at = CURRENT_TIMESTAMP WHERE id = $2",
+      [newChips, userId]
+    );
+
+    syncOnlineUserChips(userId, newChips);
+
+    res.json({
+      ok: true,
+      chips: newChips,
+      message: "Daily bonus claimed: +" + DAILY_BONUS_AMOUNT
+    });
+  } catch (error) {
+    console.error("Daily bonus error:", error);
+    res.status(500).json({ error: "Daily bonus failed." });
+  }
+});
+
+app.post("/api/reload-chips", async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Login first." });
+    }
+
+    if (isUserInActiveHand(userId)) {
+      return res.status(400).json({ error: "You cannot reload during an active hand." });
+    }
+
+    const user = await getUserById(userId);
+
+    if (!user) {
+      return res.status(401).json({ error: "Login again." });
+    }
+
+    if (user.chips >= RELOAD_MINIMUM_CHIPS) {
+      return res.status(400).json({
+        error: "Reload is only available when chips are below " + RELOAD_MINIMUM_CHIPS + "."
+      });
+    }
+
+    const cooldown = isCooldownReady(user.last_reload_at, RELOAD_COOLDOWN_MS);
+
+    if (!cooldown.ready) {
+      return res.status(400).json({
+        error: "Reload is not ready. Try again in " + formatRemaining(cooldown.remainingMs) + "."
+      });
+    }
+
+    const newChips = Math.max(user.chips, RELOAD_CHIPS_AMOUNT);
+
+    await pool.query(
+      "UPDATE users SET chips = $1, last_reload_at = CURRENT_TIMESTAMP WHERE id = $2",
+      [newChips, userId]
+    );
+
+    syncOnlineUserChips(userId, newChips);
+
+    res.json({
+      ok: true,
+      chips: newChips,
+      message: "Chips reloaded to " + newChips
+    });
+  } catch (error) {
+    console.error("Reload error:", error);
+    res.status(500).json({ error: "Reload failed." });
   }
 });
 
@@ -360,6 +548,8 @@ function getPublicRoomState(room) {
       role: player.role || "",
       folded: player.folded,
       allIn: player.allIn || false,
+      disconnected: player.disconnected || false,
+      waitingNextHand: player.waitingNextHand || false,
       isTurn: player.isTurn,
       status: player.status
     })),
@@ -370,10 +560,18 @@ function getPublicRoomState(room) {
     status: room.status
   };
 }
-
 function findPlayerLocation(socketId) {
   for (const room of Object.values(rooms)) {
     const player = room.players.find((p) => p.socketId === socketId);
+    if (player) return { room, player };
+  }
+
+  return null;
+}
+
+function findPlayerLocationByUserId(userId) {
+  for (const room of Object.values(rooms)) {
+    const player = room.players.find((p) => p.userId === userId);
     if (player) return { room, player };
   }
 
@@ -399,9 +597,10 @@ function resetRoomToWaiting(room) {
     player.folded = false;
     player.allIn = false;
     player.isTurn = false;
-    player.status = "Waiting";
+    player.status = player.disconnected ? "Disconnected" : "Waiting";
     player.role = "";
     player.hasActed = false;
+    player.waitingNextHand = false;
   });
 }
 
@@ -431,6 +630,28 @@ function removePlayer(socketId) {
   return null;
 }
 
+function removePlayerByUserId(userId) {
+  for (const room of Object.values(rooms)) {
+    const index = room.players.findIndex((p) => p.userId === userId);
+
+    if (index !== -1) {
+      const removedPlayer = room.players.splice(index, 1)[0];
+
+      room.players.forEach((player, playerIndex) => {
+        player.seat = playerIndex;
+      });
+
+      if (room.players.length < 2) {
+        resetRoomToWaiting(room);
+      }
+
+      return { room, removedPlayer };
+    }
+  }
+
+  return null;
+}
+
 function getNextPlayerIndex(room, fromIndex) {
   if (!room.players.length) return 0;
 
@@ -438,20 +659,29 @@ function getNextPlayerIndex(room, fromIndex) {
     const index = (fromIndex + i + room.players.length) % room.players.length;
     const player = room.players[index];
 
-    if (player && player.chips > 0) return index;
+    if (player && player.chips > 0 && !player.disconnected && !player.waitingNextHand) {
+      return index;
+    }
   }
 
   return 0;
 }
 
 function getNextActionIndex(room, fromIndex) {
-  if (!room.players.length) return 0;
+  if (!room.players.length) return -1;
 
   for (let i = 1; i <= room.players.length; i++) {
     const index = (fromIndex + i + room.players.length) % room.players.length;
     const player = room.players[index];
 
-    if (player && !player.folded && !player.allIn && player.chips > 0) {
+    if (
+      player &&
+      !player.folded &&
+      !player.allIn &&
+      !player.disconnected &&
+      !player.waitingNextHand &&
+      player.chips > 0
+    ) {
       return index;
     }
   }
@@ -460,11 +690,25 @@ function getNextActionIndex(room, fromIndex) {
 }
 
 function activePlayers(room) {
-  return room.players.filter((player) => !player.folded);
+  return room.players.filter((player) => !player.folded && !player.waitingNextHand);
 }
 
 function playersWhoCanAct(room) {
-  return room.players.filter((player) => !player.folded && !player.allIn && player.chips > 0);
+  return room.players.filter((player) => {
+    return (
+      !player.folded &&
+      !player.allIn &&
+      !player.disconnected &&
+      !player.waitingNextHand &&
+      player.chips > 0
+    );
+  });
+}
+
+function playablePlayers(room) {
+  return room.players.filter((player) => {
+    return player.chips > 0 && !player.disconnected && !player.waitingNextHand;
+  });
 }
 
 function onlyOnePlayerLeft(room) {
@@ -482,7 +726,7 @@ function setupDealerAndBlinds(room) {
 
   room.dealerIndex = getNextPlayerIndex(room, room.dealerIndex);
 
-  if (room.players.length === 2) {
+  if (playablePlayers(room).length === 2) {
     room.smallBlindIndex = room.dealerIndex;
     room.bigBlindIndex = getNextPlayerIndex(room, room.smallBlindIndex);
   } else {
@@ -551,10 +795,8 @@ function bettingRoundComplete(room) {
 }
 
 async function startHand(room) {
-  const playablePlayers = room.players.filter((player) => player.chips > 0);
-
-  if (playablePlayers.length < 2) {
-    room.status = "Need at least 2 players with chips";
+  if (playablePlayers(room).length < 2) {
+    room.status = "Need at least 2 connected players with chips";
     room.phase = "waiting";
     room.handStarted = false;
     return;
@@ -569,15 +811,18 @@ async function startHand(room) {
   room.status = "New hand started";
 
   room.players.forEach((player) => {
-    player.cards = player.chips > 0 ? [room.deck.pop(), room.deck.pop()] : [];
+    const canPlay = player.chips > 0 && !player.disconnected && !player.waitingNextHand;
+
+    player.cards = canPlay ? [room.deck.pop(), room.deck.pop()] : [];
     player.bet = 0;
     player.committedThisHand = 0;
-    player.folded = player.chips <= 0;
+    player.folded = !canPlay;
     player.allIn = false;
-    player.status = player.chips > 0 ? "In hand" : "No chips";
+    player.status = canPlay ? "In hand" : player.disconnected ? "Disconnected" : "Waiting next hand";
     player.isTurn = false;
     player.hasActed = false;
     player.role = "";
+    player.waitingNextHand = false;
   });
 
   setupDealerAndBlinds(room);
@@ -595,7 +840,7 @@ async function startHand(room) {
     sbName +
     " posts SB " +
     smallBlind.amount +
-        ", " +
+    ", " +
     bbName +
     " posts BB " +
     bigBlind.amount;
@@ -618,7 +863,15 @@ function setCurrentTurn(room) {
     return;
   }
 
-  if (room.turnIndex === -1 || !room.players[room.turnIndex] || room.players[room.turnIndex].folded || room.players[room.turnIndex].allIn || room.players[room.turnIndex].chips <= 0) {
+  if (
+    room.turnIndex === -1 ||
+    !room.players[room.turnIndex] ||
+    room.players[room.turnIndex].folded ||
+    room.players[room.turnIndex].allIn ||
+    room.players[room.turnIndex].disconnected ||
+    room.players[room.turnIndex].waitingNextHand ||
+    room.players[room.turnIndex].chips <= 0
+  ) {
     room.turnIndex = getNextActionIndex(room, room.turnIndex);
   }
 
@@ -739,14 +992,21 @@ function parseCard(card) {
   const suit = card.slice(-1);
   const rank = card.slice(0, -1);
 
-  return { card, rank, suit, value: RANK_VALUES[rank] };
+  return {
+    card,
+    rank,
+    suit,
+    value: RANK_VALUES[rank]
+  };
 }
 
 function getCounts(values) {
   const counts = {};
+
   values.forEach((value) => {
     counts[value] = (counts[value] || 0) + 1;
   });
+
   return counts;
 }
 
@@ -795,6 +1055,7 @@ function evaluateSevenCards(cards) {
   Object.values(suits).forEach((suitValues) => {
     if (suitValues.length >= 5) {
       const sortedSuitValues = suitValues.sort((a, b) => b - a);
+
       if (!flushValues || sortedSuitValues[0] > flushValues[0]) {
         flushValues = sortedSuitValues;
       }
@@ -909,7 +1170,7 @@ function buildSidePots(room) {
   levels.forEach((level) => {
     const contributors = room.players.filter((player) => (player.committedThisHand || 0) >= level);
     const amount = (level - previousLevel) * contributors.length;
-    const eligiblePlayers = contributors.filter((player) => !player.folded);
+    const eligiblePlayers = contributors.filter((player) => !player.folded && !player.waitingNextHand);
 
     if (amount > 0 && eligiblePlayers.length > 0) {
       sidePots.push({ amount, eligiblePlayers });
@@ -927,7 +1188,10 @@ function splitAmount(amount, winners) {
 
   return winners.map((winner) => {
     const extra = remainder > 0 ? 1 : 0;
-    if (remainder > 0) remainder--;
+
+    if (remainder > 0) {
+      remainder--;
+    }
 
     return {
       player: winner,
@@ -937,7 +1201,7 @@ function splitAmount(amount, winners) {
 }
 
 async function finishHand(room) {
-  const remainingPlayers = room.players.filter((player) => !player.folded);
+  const remainingPlayers = room.players.filter((player) => !player.folded && !player.waitingNextHand);
 
   if (remainingPlayers.length === 0) {
     resetRoomToWaiting(room);
@@ -953,9 +1217,11 @@ async function finishHand(room) {
 
   if (remainingPlayers.length === 1) {
     const winner = remainingPlayers[0];
+
     winner.chips += room.pot;
     payoutByUserId[winner.userId] = room.pot;
     allWinners = [winner];
+
     resultMessages.push(winner.name + " wins " + room.pot + " because everyone else folded.");
   } else {
     if (room.communityCards.length < 5) {
@@ -974,7 +1240,8 @@ async function finishHand(room) {
 
       payouts.forEach((payout) => {
         payout.player.chips += payout.amount;
-        payoutByUserId[payout.player.userId] = (payoutByUserId[payout.player.userId] || 0) + payout.amount;
+        payoutByUserId[payout.player.userId] =
+          (payoutByUserId[payout.player.userId] || 0) + payout.amount;
       });
 
       if (result.hand && result.hand.rank > topWinningHandRank) {
@@ -993,12 +1260,12 @@ async function finishHand(room) {
 
       resultMessages.push(
         winnerNames +
-        " win " +
-        sidePot.amount +
-        " from " +
-        potLabel +
-        " with " +
-        result.hand.name
+          " win " +
+          sidePot.amount +
+          " from " +
+          potLabel +
+          " with " +
+          result.hand.name
       );
     });
   }
@@ -1011,7 +1278,12 @@ async function finishHand(room) {
 
   room.players.forEach((player) => {
     player.isTurn = false;
-    player.status = remainingPlayers.includes(player) ? "Showdown" : "Folded";
+
+    if (player.waitingNextHand) {
+      player.status = "Waiting next hand";
+    } else {
+      player.status = remainingPlayers.includes(player) ? "Showdown" : "Folded";
+    }
   });
 
   await updateUserStatsAfterHand(room, allWinners, bestHandsByUserId, biggestWonPot);
@@ -1021,7 +1293,7 @@ async function finishHand(room) {
   emitRoom(room);
 
   setTimeout(async () => {
-    if (room.players.filter((player) => player.chips > 0).length >= 2) {
+    if (playablePlayers(room).length >= 2) {
       await startHand(room);
       emitRoom(room);
     } else {
@@ -1042,7 +1314,6 @@ function emitRoom(room) {
   emitPrivateCards(room);
   io.emit("roomsUpdate", getPublicRooms());
 }
-
 app.get("/", (req, res) => {
   res.send(`
 <!DOCTYPE html>
@@ -1050,12 +1321,9 @@ app.get("/", (req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title>Poker Royale</title>
-
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
     body {
       margin: 0;
       min-height: 100vh;
@@ -1065,385 +1333,71 @@ app.get("/", (req, res) => {
       overflow-x: hidden;
       padding-bottom: calc(118px + env(safe-area-inset-bottom));
     }
-
     body.rtl { direction: rtl; font-family: Arial, Tahoma, sans-serif; }
-
     .app { width: 100%; max-width: 1100px; margin: 0 auto; padding: 16px; }
-
-    .top-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .logo {
-      color: #facc15;
-      font-size: 28px;
-      font-weight: 900;
-      text-shadow: 0 0 20px rgba(250, 204, 21, 0.65);
-    }    .lang-btn {
-      border: 1px solid rgba(250, 204, 21, 0.45);
-      background: rgba(0, 0, 0, 0.45);
-      color: #facc15;
-      border-radius: 999px;
-      padding: 9px 13px;
-      font-weight: 900;
-      cursor: pointer;
-    }
-
-    .auth-panel {
-      background: rgba(0,0,0,0.46);
-      border: 1px solid rgba(250,204,21,0.24);
-      border-radius: 18px;
-      padding: 14px;
-      margin-bottom: 14px;
-    }
-
-    .auth-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr auto auto;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .input {
-      width: 100%;
-      border: 1px solid rgba(250, 204, 21, 0.35);
-      background: rgba(0, 0, 0, 0.45);
-      color: white;
-      border-radius: 12px;
-      padding: 12px;
-      outline: none;
-      font-size: 15px;
-    }
-
-    .small-btn {
-      border: none;
-      border-radius: 12px;
-      padding: 12px;
-      color: white;
-      background: #166534;
-      font-weight: 900;
-      cursor: pointer;
-    }
-
+    .top-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .logo { color: #facc15; font-size: 28px; font-weight: 900; text-shadow: 0 0 20px rgba(250,204,21,0.65); }
+    .lang-btn { border: 1px solid rgba(250,204,21,0.45); background: rgba(0,0,0,0.45); color: #facc15; border-radius: 999px; padding: 9px 13px; font-weight: 900; cursor: pointer; }
+    .auth-panel, .panel, .log { background: rgba(0,0,0,0.44); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 14px; }
+    .auth-panel { margin-bottom: 14px; }
+    .auth-grid { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; align-items: center; }
+    .input { width: 100%; border: 1px solid rgba(250,204,21,0.35); background: rgba(0,0,0,0.45); color: white; border-radius: 12px; padding: 12px; outline: none; font-size: 15px; }
+    .small-btn { border: none; border-radius: 12px; padding: 12px; color: white; background: #166534; font-weight: 900; cursor: pointer; }
     .register-btn { background: #ca8a04; color: #111827; }
     .logout-btn { background: #991b1b; }
-
-    .user-card {
-      display: none;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-
+    .bonus-btn { background: #2563eb; }
+    .reload-btn { background: #7c3aed; }
+    .user-card { display: none; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
     .user-info strong { color: #facc15; }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .stat-box {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(250,204,21,0.18);
-      border-radius: 12px;
-      padding: 8px;
-      font-size: 12px;
-      color: #d1d5db;
-    }
-
+    .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 10px; }
+    .stat-box { background: rgba(255,255,255,0.06); border: 1px solid rgba(250,204,21,0.18); border-radius: 12px; padding: 8px; font-size: 12px; color: #d1d5db; }
     .stat-box strong { color: #facc15; }
-
-    .leaderboard-list, .history-list {
-      display: grid;
-      gap: 8px;
-      font-size: 12px;
-      color: #d1d5db;
-    }
-
-    .list-item {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      padding: 8px;
-      line-height: 1.45;
-    }
-
-    .top-status {
-      margin: 12px auto;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-    }
-
-    .status-pill {
-      background: rgba(0, 0, 0, 0.42);
-      border: 1px solid rgba(250, 204, 21, 0.28);
-      border-radius: 12px;
-      padding: 9px 8px;
-      font-size: 12px;
-      color: #d1d5db;
-    }
-
+    .leaderboard-list, .history-list { display: grid; gap: 8px; font-size: 12px; color: #d1d5db; }
+    .list-item { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 8px; line-height: 1.45; }
+    .top-status { margin: 12px auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .status-pill { background: rgba(0,0,0,0.42); border: 1px solid rgba(250,204,21,0.28); border-radius: 12px; padding: 9px 8px; font-size: 12px; color: #d1d5db; }
     .status-pill strong { color: #facc15; }
-
-    .main-layout {
-      display: grid;
-      grid-template-columns: 270px 1fr;
-      gap: 16px;
-      align-items: start;
-    }
-
-    .panel {
-      background: rgba(0, 0, 0, 0.44);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 18px;
-      padding: 14px;
-    }
-
+    .main-layout { display: grid; grid-template-columns: 270px 1fr; gap: 16px; align-items: start; }
     .panel h2 { margin: 0 0 12px; color: #facc15; font-size: 17px; }
-
-    .room-card {
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 14px;
-      padding: 12px;
-      margin-bottom: 10px;
-      cursor: pointer;
-    }
-
-    .room-card.active {
-      border-color: #facc15;
-      background: rgba(250, 204, 21, 0.12);
-    }
-
+    .room-card { border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); border-radius: 14px; padding: 12px; margin-bottom: 10px; cursor: pointer; }
+    .room-card.active { border-color: #facc15; background: rgba(250,204,21,0.12); }
     .room-title { font-weight: 900; margin-bottom: 5px; }
     .room-meta { color: #d1d5db; font-size: 12px; line-height: 1.55; }
-
-    .poker-table {
-      position: relative;
-      min-height: 560px;
-      border-radius: 48%;
-      background: radial-gradient(circle at center, #15803d 0%, #166534 45%, #052e16 100%);
-      border: 12px solid #7c2d12;
-      box-shadow: inset 0 0 48px rgba(0,0,0,0.56), 0 25px 70px rgba(0,0,0,0.55);
-      overflow: hidden;
-    }
-
-    .table-line {
-      position: absolute;
-      inset: 32px;
-      border-radius: 48%;
-      border: 2px dashed rgba(250, 204, 21, 0.32);
-      pointer-events: none;
-    }
-
-    .dealer {
-      position: absolute;
-      top: 38px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #facc15;
-      color: #111827;
-      padding: 7px 14px;
-      border-radius: 999px;
-      font-weight: 900;
-      font-size: 13px;
-      z-index: 7;
-    }
-
-    .community {
-      position: absolute;
-      top: 185px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 8px;
-      z-index: 8;
-    }
-
-    .card {
-      width: 52px;
-      height: 74px;
-      background: #fff;
-      color: #111827;
-      border-radius: 9px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      font-size: 20px;
-      box-shadow: 0 12px 22px rgba(0,0,0,0.38);
-    }
-
+    .poker-table { position: relative; min-height: 560px; border-radius: 48%; background: radial-gradient(circle at center, #15803d 0%, #166534 45%, #052e16 100%); border: 12px solid #7c2d12; box-shadow: inset 0 0 48px rgba(0,0,0,0.56), 0 25px 70px rgba(0,0,0,0.55); overflow: hidden; }
+    .table-line { position: absolute; inset: 32px; border-radius: 48%; border: 2px dashed rgba(250,204,21,0.32); pointer-events: none; }
+    .dealer { position: absolute; top: 38px; left: 50%; transform: translateX(-50%); background: #facc15; color: #111827; padding: 7px 14px; border-radius: 999px; font-weight: 900; font-size: 13px; z-index: 7; }
+    .community { position: absolute; top: 185px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 8; }
+    .card { width: 52px; height: 74px; background: #fff; color: #111827; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; box-shadow: 0 12px 22px rgba(0,0,0,0.38); }
     .card.red { color: #dc2626; }
-
-    .card.back {
-      background: linear-gradient(135deg, #991b1b, #450a0a);
-      color: #facc15;
-      border: 2px solid rgba(250, 204, 21, 0.8);
-    }
-
-    .pot {
-      position: absolute;
-      top: 282px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.58);
-      border: 1px solid rgba(250,204,21,0.55);
-      border-radius: 18px;
-      padding: 10px 18px;
-      color: #facc15;
-      font-weight: 900;
-      z-index: 8;
-    }
-
-    .turn-status {
-      position: absolute;
-      top: 340px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(2,6,23,0.68);
-      border: 1px solid rgba(34,197,94,0.5);
-      border-radius: 14px;
-      padding: 10px 14px;
-      min-width: 230px;
-      color: #bbf7d0;
-      text-align: center;
-      font-size: 13px;
-      z-index: 8;
-    }
-
-    .my-cards {
-      position: absolute;
-      bottom: 105px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 8px;
-      z-index: 12;
-    }
-
-    .player {
-      position: absolute;
-      width: 118px;
-      text-align: center;
-      z-index: 10;
-    }
-
-    .avatar {
-      width: 58px;
-      height: 58px;
-      margin: 0 auto 5px;
-      border-radius: 50%;
-      background: radial-gradient(circle at top, #facc15, #a16207);
-      border: 3px solid #fff7ed;
-      color: #111827;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      font-size: 21px;
-    }
-
-    .player.turn .avatar {
-      box-shadow: 0 0 0 4px rgba(34,197,94,0.55), 0 0 24px rgba(34,197,94,0.65);
-    }
-
+    .card.back { background: linear-gradient(135deg, #991b1b, #450a0a); color: #facc15; border: 2px solid rgba(250,204,21,0.8); }
+    .pot { position: absolute; top: 282px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.58); border: 1px solid rgba(250,204,21,0.55); border-radius: 18px; padding: 10px 18px; color: #facc15; font-weight: 900; z-index: 8; }
+    .turn-status { position: absolute; top: 340px; left: 50%; transform: translateX(-50%); background: rgba(2,6,23,0.68); border: 1px solid rgba(34,197,94,0.5); border-radius: 14px; padding: 10px 14px; min-width: 230px; color: #bbf7d0; text-align: center; font-size: 13px; z-index: 8; }
+    .my-cards { position: absolute; bottom: 105px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 12; }
+    .player { position: absolute; width: 118px; text-align: center; z-index: 10; }
+    .avatar { width: 58px; height: 58px; margin: 0 auto 5px; border-radius: 50%; background: radial-gradient(circle at top, #facc15, #a16207); border: 3px solid #fff7ed; color: #111827; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 21px; }
+    .player.turn .avatar { box-shadow: 0 0 0 4px rgba(34,197,94,0.55), 0 0 24px rgba(34,197,94,0.65); }
     .player.folded { opacity: 0.45; }
-
-    .player-name {
-      background: rgba(0,0,0,0.7);
-      border-radius: 999px;
-      padding: 5px 8px;
-      font-size: 12px;
-      font-weight: 900;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .role-badge {
-      display: inline-block;
-      margin-top: 3px;
-      background: #facc15;
-      color: #111827;
-      border-radius: 999px;
-      padding: 3px 7px;
-      font-size: 10px;
-      font-weight: 900;
-    }
-
+    .player-name { background: rgba(0,0,0,0.7); border-radius: 999px; padding: 5px 8px; font-size: 12px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .role-badge { display: inline-block; margin-top: 3px; background: #facc15; color: #111827; border-radius: 999px; padding: 3px 7px; font-size: 10px; font-weight: 900; }
+    .danger-badge { background: #ef4444; color: white; }
     .chips { margin-top: 4px; color: #facc15; font-size: 12px; }
     .bet { margin-top: 2px; color: #93c5fd; font-size: 11px; }
-
     .seat-0 { left: 50%; bottom: 24px; transform: translateX(-50%); }
     .seat-1 { left: 48px; bottom: 115px; }
     .seat-2 { left: 48px; top: 100px; }
     .seat-3 { right: 48px; top: 100px; }
     .seat-4 { right: 48px; bottom: 115px; }
     .seat-5 { left: 50%; top: 72px; transform: translateX(-50%); }
-
-    .actions {
-      position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: calc(14px + env(safe-area-inset-bottom));
-      z-index: 2000;
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      width: min(96%, 620px);
-      background: rgba(0,0,0,0.5);
-      border: 1px solid rgba(250,204,21,0.25);
-      border-radius: 22px;
-      padding: 10px;
-      backdrop-filter: blur(10px);
-    }
-
-    .btn {
-      border: none;
-      border-radius: 999px;
-      padding: 12px 14px;
-      min-width: 78px;
-      color: white;
-      font-weight: 900;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
+    .actions { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 2000; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; width: min(96%, 620px); background: rgba(0,0,0,0.5); border: 1px solid rgba(250,204,21,0.25); border-radius: 22px; padding: 10px; backdrop-filter: blur(10px); }
+    .btn { border: none; border-radius: 999px; padding: 12px 14px; min-width: 78px; color: white; font-weight: 900; cursor: pointer; font-size: 13px; }
     .btn:disabled { opacity: 0.42; cursor: not-allowed; }
-
     .fold { background: #991b1b; }
     .call { background: #166534; }
     .raise { background: #ca8a04; color: #111827; }
     .allin { background: #7c3aed; }
     .start { background: #2563eb; }
-
-    .log {
-      margin-top: 14px;
-      background: rgba(0,0,0,0.42);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 16px;
-      padding: 12px;
-      font-size: 13px;
-      color: #d1d5db;
-      max-height: 170px;
-      overflow-y: auto;
-      line-height: 1.55;
-    }
-
-    .log-item {
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      padding: 5px 0;
-    }
-
+    .log { margin-top: 14px; font-size: 13px; color: #d1d5db; max-height: 170px; overflow-y: auto; line-height: 1.55; }
+    .log-item { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 5px 0; }
     @media (max-width: 850px) {
       .auth-grid { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -1468,7 +1422,6 @@ app.get("/", (req, res) => {
     }
   </style>
 </head>
-
 <body>
   <div class="app">
     <div class="top-row">
@@ -1489,6 +1442,8 @@ app.get("/", (req, res) => {
           <div>Welcome, <strong id="panelUsername">Player</strong></div>
           <div>Chips: <strong id="panelChips">0</strong></div>
         </div>
+        <button class="small-btn bonus-btn" id="bonusBtn">Daily Bonus</button>
+        <button class="small-btn reload-btn" id="reloadBtn">Reload</button>
         <button class="small-btn logout-btn" id="logoutBtn">Logout</button>
       </div>
 
@@ -1500,7 +1455,8 @@ app.get("/", (req, res) => {
         <div class="stat-box">Best Hand<br><strong id="panelBestHand">None</strong></div>
       </div>
     </div>
-        <div class="top-status">
+
+    <div class="top-status">
       <div class="status-pill">Connection: <strong id="connectionStatus">Connecting...</strong></div>
       <div class="status-pill">Online: <strong id="onlineCount">0</strong></div>
       <div class="status-pill">Phase: <strong id="phaseStatus">waiting</strong></div>
@@ -1553,7 +1509,6 @@ app.get("/", (req, res) => {
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-
   <script>
     const socket = io();
 
@@ -1584,11 +1539,8 @@ app.get("/", (req, res) => {
         fold: "Fold",
         raise: "Raise",
         allIn: "All-in",
-        wins: "Wins",
-        losses: "Losses",
-        hands: "Hands",
-        biggestPot: "Biggest Pot",
-        bestHand: "Best Hand"
+        dailyBonus: "Daily Bonus",
+        reload: "Reload"
       },
       fa: {
         langButton: "EN",
@@ -1610,11 +1562,8 @@ app.get("/", (req, res) => {
         fold: "انصراف",
         raise: "افزایش",
         allIn: "آل این",
-        wins: "برد",
-        losses: "باخت",
-        hands: "دست‌ها",
-        biggestPot: "بزرگ‌ترین پات",
-        bestHand: "بهترین دست"
+        dailyBonus: "جایزه روزانه",
+        reload: "شارژ چیپ"
       }
     };
 
@@ -1626,6 +1575,8 @@ app.get("/", (req, res) => {
     const loginBtn = document.getElementById("loginBtn");
     const registerBtn = document.getElementById("registerBtn");
     const logoutBtn = document.getElementById("logoutBtn");
+    const bonusBtn = document.getElementById("bonusBtn");
+    const reloadBtn = document.getElementById("reloadBtn");
     const panelUsername = document.getElementById("panelUsername");
     const panelChips = document.getElementById("panelChips");
     const statsPanel = document.getElementById("statsPanel");
@@ -1669,6 +1620,8 @@ app.get("/", (req, res) => {
       loginBtn.textContent = tr().login;
       registerBtn.textContent = tr().register;
       logoutBtn.textContent = tr().logout;
+      bonusBtn.textContent = tr().dailyBonus;
+      reloadBtn.textContent = tr().reload;
       startBtn.textContent = tr().start;
       foldBtn.textContent = tr().fold;
       callBtn.textContent = tr().callCheck;
@@ -1823,13 +1776,34 @@ app.get("/", (req, res) => {
       addLog("Logged out.");
     };
 
+    bonusBtn.onclick = async function() {
+      try {
+        const data = await api("/api/daily-bonus", {});
+        addLog(data.message);
+        await loadMe();
+        await refreshDashboard();
+      } catch (error) {
+        alert(error.message);
+      }
+    };
+
+    reloadBtn.onclick = async function() {
+      try {
+        const data = await api("/api/reload-chips", {});
+        addLog(data.message);
+        await loadMe();
+        await refreshDashboard();
+      } catch (error) {
+        alert(error.message);
+      }
+    };
+
     function cardIsRed(card) {
       return card.includes("♥") || card.includes("♦");
     }
 
     function renderCard(card) {
       if (!card) return '<div class="card back">★</div>';
-
       const redClass = cardIsRed(card) ? " red" : "";
       return '<div class="card' + redClass + '">' + card + '</div>';
     }
@@ -1880,12 +1854,16 @@ app.get("/", (req, res) => {
         const youLabel = currentUser && player.userId === currentUser.id ? " (" + tr().you + ")" : "";
         const roleHtml = player.role ? '<div class="role-badge">' + player.role + '</div>' : "";
         const allInHtml = player.allIn ? '<div class="role-badge">ALL-IN</div>' : "";
+        const waitHtml = player.waitingNextHand ? '<div class="role-badge">WAITING</div>' : "";
+        const disconnectHtml = player.disconnected ? '<div class="role-badge danger-badge">OFFLINE</div>' : "";
 
         el.innerHTML =
           '<div class="avatar">' + initial + '</div>' +
           '<div class="player-name">' + player.name + youLabel + '</div>' +
           roleHtml +
           allInHtml +
+          waitHtml +
+          disconnectHtml +
           '<div class="chips">🟡 ' + player.chips + '</div>' +
           '<div class="bet">' + tr().bet + ': ' + player.bet + '</div>' +
           '<div class="bet">' + tr().committed + ': ' + player.committedThisHand + '</div>';
@@ -1934,7 +1912,15 @@ app.get("/", (req, res) => {
         return player.userId === currentUser.id;
       });
 
-      const isMyTurn = me && me.isTurn && !me.folded && !me.allIn && room.phase !== "waiting" && room.phase !== "showdown";
+      const isMyTurn =
+        me &&
+        me.isTurn &&
+        !me.folded &&
+        !me.allIn &&
+        !me.disconnected &&
+        !me.waitingNextHand &&
+        room.phase !== "waiting" &&
+        room.phase !== "showdown";
 
       foldBtn.disabled = !isMyTurn;
       callBtn.disabled = !isMyTurn;
@@ -2064,25 +2050,38 @@ io.on("connection", (socket) => {
         return;
       }
 
+      const existingByUser = findPlayerLocationByUserId(user.id);
+
+      if (existingByUser) {
+        const { room, player } = existingByUser;
+
+        if (disconnectTimers.has(user.id)) {
+          clearTimeout(disconnectTimers.get(user.id));
+          disconnectTimers.delete(user.id);
+        }
+
+        player.socketId = socket.id;
+        player.disconnected = false;
+
+        if (player.waitingNextHand) {
+          player.status = "Waiting next hand";
+        } else if (room.handStarted) {
+          player.status = player.folded ? "Folded" : "Reconnected";
+        } else {
+          player.status = "Waiting";
+        }
+
+        socket.join(room.id);
+        socket.emit("roomJoined", getPublicRoomState(room));
+        io.to(room.id).emit("gameMessage", user.username + " reconnected to " + room.name + ".");
+        emitRoom(room);
+        return;
+      }
+
       const room = rooms[roomId];
 
       if (!room) {
         socket.emit("gameMessage", "Room not found.");
-        return;
-      }
-
-      const existing = findPlayerLocation(socket.id);
-
-      if (existing) {
-        socket.leave(existing.room.id);
-        removePlayer(socket.id);
-        emitRoom(existing.room);
-      }
-
-      const alreadyInRoom = room.players.find((p) => p.userId === user.id);
-
-      if (alreadyInRoom) {
-        socket.emit("gameMessage", "This account is already seated in this room.");
         return;
       }
 
@@ -2096,6 +2095,8 @@ io.on("connection", (socket) => {
         return;
       }
 
+      const joiningDuringHand = room.handStarted && room.phase !== "waiting" && room.phase !== "showdown";
+
       const player = {
         socketId: socket.id,
         userId: user.id,
@@ -2106,20 +2107,25 @@ io.on("connection", (socket) => {
         bet: 0,
         committedThisHand: 0,
         role: "",
-        folded: false,
+        folded: joiningDuringHand,
         allIn: false,
+        disconnected: false,
+        waitingNextHand: joiningDuringHand,
         isTurn: false,
         hasActed: false,
-        status: "Waiting"
+        status: joiningDuringHand ? "Waiting next hand" : "Waiting"
       };
 
       room.players.push(player);
-      room.status = user.username + " joined the table";
+
+      room.status = joiningDuringHand
+        ? user.username + " joined and waits for next hand"
+        : user.username + " joined the table";
 
       socket.join(room.id);
 
       socket.emit("roomJoined", getPublicRoomState(room));
-      io.to(room.id).emit("gameMessage", user.username + " joined " + room.name + ".");
+      io.to(room.id).emit("gameMessage", room.status);
 
       emitRoom(room);
     } catch (error) {
@@ -2141,8 +2147,8 @@ io.on("connection", (socket) => {
         return;
       }
 
-      if (room.players.filter((p) => p.chips > 0).length < 2) {
-        socket.emit("gameMessage", "Need at least 2 players with chips to start.");
+      if (playablePlayers(room).length < 2) {
+        socket.emit("gameMessage", "Need at least 2 connected players with chips to start.");
         return;
       }
 
@@ -2178,7 +2184,7 @@ io.on("connection", (socket) => {
         return;
       }
 
-      if (player.allIn || player.folded) {
+      if (player.allIn || player.folded || player.disconnected || player.waitingNextHand) {
         socket.emit("gameMessage", "You cannot act now.");
         return;
       }
@@ -2246,7 +2252,7 @@ io.on("connection", (socket) => {
         room.currentBet = raiseToAmount;
 
         room.players.forEach((p) => {
-          if (!p.folded && !p.allIn && p.chips > 0) {
+          if (!p.folded && !p.allIn && !p.disconnected && !p.waitingNextHand && p.chips > 0) {
             p.hasActed = false;
           }
         });
@@ -2275,7 +2281,7 @@ io.on("connection", (socket) => {
           room.currentBet = targetBet;
 
           room.players.forEach((p) => {
-            if (!p.folded && !p.allIn && p.chips > 0) {
+            if (!p.folded && !p.allIn && !p.disconnected && !p.waitingNextHand && p.chips > 0) {
               p.hasActed = false;
             }
           });
@@ -2301,12 +2307,49 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("Disconnected:", socket.id);
 
-    const result = removePlayer(socket.id);
+    const location = findPlayerLocation(socket.id);
 
-    if (result) {
-      io.to(result.room.id).emit("gameMessage", result.removedPlayer.name + " left the table.");
-      emitRoom(result.room);
+    if (!location) {
+      io.emit("onlineCount", io.engine.clientsCount);
+      return;
     }
+
+    const { room, player } = location;
+
+    player.disconnected = true;
+    player.isTurn = false;
+    player.status = "Disconnected";
+
+    io.to(room.id).emit(
+      "gameMessage",
+      player.name + " disconnected. Waiting " + Math.floor(RECONNECT_GRACE_MS / 1000) + "s for reconnect."
+    );
+
+    emitRoom(room);
+
+    const timer = setTimeout(() => {
+      const result = removePlayerByUserId(player.userId);
+
+      if (result) {
+        io.to(result.room.id).emit("gameMessage", result.removedPlayer.name + " left the table.");
+        emitRoom(result.room);
+
+        if (result.room.handStarted) {
+          if (result.room.turnIndex >= result.room.players.length) {
+            result.room.turnIndex = 0;
+          }
+
+          if (playersWhoCanAct(result.room).length > 0) {
+            setCurrentTurn(result.room);
+            emitRoom(result.room);
+          }
+        }
+      }
+
+      disconnectTimers.delete(player.userId);
+    }, RECONNECT_GRACE_MS);
+
+    disconnectTimers.set(player.userId, timer);
 
     io.emit("onlineCount", io.engine.clientsCount);
   });
