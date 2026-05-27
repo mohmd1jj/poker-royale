@@ -1151,7 +1151,7 @@ h1{
       active:"\u0641\u0639\u0627\u0644", soon:"\u0628\u0647\u200C\u0632\u0648\u062F\u06CC",
       games:[
         {title:"\u067E\u0648\u06A9\u0631", desc:"Texas Hold\u2019em \u0628\u0627 \u0645\u06CC\u0632 \u0622\u0646\u0644\u0627\u06CC\u0646 \u0648 \u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E \u0645\u0634\u062A\u0631\u06A9", icon:"POKER", photo:"https://source.unsplash.com/1200x900/?poker,cards,chips", href:"/games/poker", active:true, accent:"#facc15"},
-        {title:"\u0634\u0637\u0631\u0646\u062C", desc:"\u0628\u0627\u0632\u06CC \u0627\u0633\u062A\u0631\u0627\u062A\u0698\u06CC\u06A9 \u062F\u0648\u0646\u0641\u0631\u0647 \u0628\u0627 \u0627\u062A\u0627\u0642 \u0622\u0646\u0644\u0627\u06CC\u0646", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"#", active:false, accent:"#fff7ad"},
+        {title:"\u0634\u0637\u0631\u0646\u062C", desc:"\u0628\u0627\u0632\u06CC \u0627\u0633\u062A\u0631\u0627\u062A\u0698\u06CC\u06A9 \u062F\u0648\u0646\u0641\u0631\u0647 \u0628\u0627 \u0627\u062A\u0627\u0642 \u0622\u0646\u0644\u0627\u06CC\u0646", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"/games/chess", active:false, accent:"#fff7ad"},
         {title:"\u0645\u0646\u0686", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9 \u0648 \u0633\u0631\u06AF\u0631\u0645\u200C\u06A9\u0646\u0646\u062F\u0647 \u0628\u0631\u0627\u06CC \u0631\u0642\u0627\u0628\u062A \u062F\u0648\u0633\u062A\u0627\u0646\u0647", icon:"LUDO", photo:"https://source.unsplash.com/1200x900/?ludo,boardgame,dice", href:"#", active:false, accent:"#22c55e"},
         {title:"\u062A\u062E\u062A\u0647 \u0646\u0631\u062F", desc:"\u0631\u0642\u0627\u0628\u062A \u0633\u0631\u06CC\u0639 \u0628\u0627 \u062A\u0627\u0633 \u0648 \u0645\u0647\u0631\u0647\u200C\u0647\u0627\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9", icon:"BACK", photo:"https://source.unsplash.com/1200x900/?backgammon,dice,board", href:"#", active:false, accent:"#f59e0b"},
         {title:"\u062D\u06A9\u0645", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0627\u0631\u062A\u06CC \u062A\u06CC\u0645\u06CC \u0628\u0627 \u0642\u0648\u0627\u0646\u06CC\u0646 \u0622\u0634\u0646\u0627", icon:"HOKM", photo:"https://source.unsplash.com/1200x900/?playing,cards,table", href:"#", active:false, accent:"#ef4444"},
@@ -1166,7 +1166,7 @@ h1{
       active:"Active", soon:"Soon",
       games:[
         {title:"Poker", desc:"Texas Hold\u2019em with online table and shared chip balance", icon:"POKER", photo:"https://source.unsplash.com/1200x900/?poker,cards,chips", href:"/games/poker", active:true, accent:"#facc15"},
-        {title:"Chess", desc:"Two-player strategy game with online room", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"#", active:false, accent:"#fff7ad"},
+        {title:"Chess", desc:"Two-player strategy game with online room", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"/games/chess", active:false, accent:"#fff7ad"},
         {title:"Ludo", desc:"Classic friendly competition board game", icon:"LUDO", photo:"https://source.unsplash.com/1200x900/?ludo,boardgame,dice", href:"#", active:false, accent:"#22c55e"},
         {title:"Backgammon", desc:"Fast dice and classic checker strategy", icon:"BACK", photo:"https://source.unsplash.com/1200x900/?backgammon,dice,board", href:"#", active:false, accent:"#f59e0b"},
         {title:"Hokm", desc:"Team card game with familiar rules", icon:"HOKM", photo:"https://source.unsplash.com/1200x900/?playing,cards,table", href:"#", active:false, accent:"#ef4444"},
@@ -1301,6 +1301,7 @@ button,.small-btn,.primaryBtn,.secondaryBtn,.homeBtn{
 
 app.get("/poker", (req, res) => res.redirect("/games/poker"));
 
+app.get("/games/chess", (req, res) => res.redirect("/"));
 
 app.get("/games/chess", (req, res) => {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -1328,7 +1329,7 @@ app.get("/games/chess", (req, res) => {
   <main class="wrap">
     <div class="top"><a class="back" href="/" id="homeBtn"></a><button class="lang" id="langBtn" type="button">EN</button></div>
     <section class="hero">
-      <div class="brand"><div class="logo">â</div><div><h1 id="title"></h1><p class="muted" id="sub"></p></div></div>
+      <div class="brand"><div class="logo">&#9822;</div><div><h1 id="title"></h1><p class="muted" id="sub"></p></div></div>
       <div class="status">
         <div class="statusRow"><span id="connectionLabel"></span>: <span class="gold" id="conn">Connecting...</span></div>
         <div class="statusRow"><span id="roomLabel"></span>: <span class="gold" id="roomStatus">-</span></div>
@@ -1344,10 +1345,10 @@ app.get("/games/chess", (req, res) => {
   </main>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-  const fa={home:"ØµÙØ­Ù Ø§ØµÙÛ",title:"Ø´Ø·Ø±ÙØ¬ Ø¢ÙÙØ§ÛÙ",sub:"ÙØ³Ø®Ù Ø§ÙÙÛÙ Ø´Ø·Ø±ÙØ¬ Ø¯Ù ÙÙØ±Ù Ø¨Ø§ Ø§ØªØµØ§Ù Ø¢ÙÙØ§ÛÙ Ù Ø·Ø±Ø§Ø­Û ÙÙØ§ÙÙÚ¯ Ø¨Ø§ Poker Royale",connection:"Ø§ØªØµØ§Ù",room:"ÙØ¶Ø¹ÛØª Ø§ØªØ§Ù",turn:"ÙÙØ¨Øª",join:"ÙØ±ÙØ¯ Ø¨Ù ÙÛØ² Ø´Ø·Ø±ÙØ¬",newGame:"Ø´Ø±ÙØ¹ Ø¨Ø§Ø²Û Ø¬Ø¯ÛØ¯",leave:"Ø®Ø±ÙØ¬ Ø§Ø² ÙÛØ²",flip:"ÚØ±Ø®Ø´ ØµÙØ­Ù",send:"Ø§Ø±Ø³Ø§Ù",chat:"Ù¾ÛØ§Ù Ø¨ÙÙÛØ³...",waiting:"Ø¯Ø± Ø§ÙØªØ¸Ø§Ø± Ø¨Ø§Ø²ÛÚ©Ù Ø¯ÙÙ",ready:"Ø¢ÙØ§Ø¯Ù Ø¨Ø§Ø²Û",white:"Ø³ÙÛØ¯",black:"Ø³ÛØ§Ù",yourTurn:"ÙÙØ¨Øª Ø´ÙØ§Ø³Øª",opTurn:"ÙÙØ¨Øª Ø­Ø±ÛÙ",spectator:"ØªÙØ§Ø´Ø§ÚÛ",connected:"ÙØªØµÙ",disconnected:"ÙØ·Ø¹",ended:"Ø¨Ø§Ø²Û ØªÙØ§Ù Ø´Ø¯"};
+  const fa={home:"\u0635\u0641\u062d\u0647 \u0627\u0635\u0644\u06cc",title:"\u0634\u0637\u0631\u0646\u062c \u0622\u0646\u0644\u0627\u06cc\u0646",sub:"\u0646\u0633\u062e\u0647 \u0627\u0648\u0644\u06cc\u0647 \u0634\u0637\u0631\u0646\u062c \u062f\u0648 \u0646\u0641\u0631\u0647 \u0628\u0627 \u0627\u062a\u0635\u0627\u0644 \u0622\u0646\u0644\u0627\u06cc\u0646 \u0648 \u0637\u0631\u0627\u062d\u06cc \u0647\u0645\u0627\u0647\u0646\u06af \u0628\u0627 Poker Royale",connection:"\u0627\u062a\u0635\u0627\u0644",room:"\u0648\u0636\u0639\u06cc\u062a \u0627\u062a\u0627\u0642",turn:"\u0646\u0648\u0628\u062a",join:"\u0648\u0631\u0648\u062f \u0628\u0647 \u0645\u06cc\u0632 \u0634\u0637\u0631\u0646\u062c",newGame:"\u0634\u0631\u0648\u0639 \u0628\u0627\u0632\u06cc \u062c\u062f\u06cc\u062f",leave:"\u062e\u0631\u0648\u062c \u0627\u0632 \u0645\u06cc\u0632",flip:"\u0686\u0631\u062e\u0634 \u0635\u0641\u062d\u0647",send:"\u0627\u0631\u0633\u0627\u0644",chat:"\u067e\u06cc\u0627\u0645 \u0628\u0646\u0648\u06cc\u0633...",waiting:"\u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631 \u0628\u0627\u0632\u06cc\u06a9\u0646 \u062f\u0648\u0645",ready:"\u0622\u0645\u0627\u062f\u0647 \u0628\u0627\u0632\u06cc",white:"\u0633\u0641\u06cc\u062f",black:"\u0633\u06cc\u0627\u0647",yourTurn:"\u0646\u0648\u0628\u062a \u0634\u0645\u0627\u0633\u062a",opTurn:"\u0646\u0648\u0628\u062a \u062d\u0631\u06cc\u0641",spectator:"\u062a\u0645\u0627\u0634\u0627\u0686\u06cc",connected:"\u0645\u062a\u0635\u0644",disconnected:"\u0642\u0637\u0639",ended:"\u0628\u0627\u0632\u06cc \u062a\u0645\u0627\u0645 \u0634\u062f"};
   const en={home:"Home",title:"Online Chess",sub:"First online two-player chess version with Poker Royale premium design",connection:"Connection",room:"Room Status",turn:"Turn",join:"Join Chess Table",newGame:"New Game",leave:"Leave Table",flip:"Flip Board",send:"Send",chat:"Type message...",waiting:"Waiting for second player",ready:"Ready to play",white:"White",black:"Black",yourTurn:"Your turn",opTurn:"Opponent turn",spectator:"Spectator",connected:"Connected",disconnected:"Disconnected",ended:"Game ended"};
   let currentLang=localStorage.getItem("pokerLang")||"fa",socket=null,state=null,myColor=null,selected=null,flipped=false;
-  const $=id=>document.getElementById(id),pieces={p:"â",r:"â",n:"â",b:"â",q:"â",k:"â",P:"â",R:"â",N:"â",B:"â",Q:"â",K:"â"},files=["a","b","c","d","e","f","g","h"];
+  const $=id=>document.getElementById(id),pieces={p:"\u265f",r:"\u265c",n:"\u265e",b:"\u265d",q:"\u265b",k:"\u265a",P:"\u2659",R:"\u2656",N:"\u2658",B:"\u2657",Q:"\u2655",K:"\u2654"},files=["a","b","c","d","e","f","g","h"];
   function t(){return currentLang==="fa"?fa:en}function fmtColor(c){return c==="w"?t().white:c==="b"?t().black:t().spectator}
   function applyLang(){const x=t();document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==="fa"?"rtl":"ltr";$("homeBtn").textContent=x.home;$("langBtn").textContent=currentLang==="fa"?"EN":"FA";$("title").textContent=x.title;$("sub").textContent=x.sub;$("connectionLabel").textContent=x.connection;$("roomLabel").textContent=x.room;$("turnLabel").textContent=x.turn;$("joinBtn").textContent=x.join;$("newBtn").textContent=x.newGame;$("leaveBtn").textContent=x.leave;$("flipBtn").textContent=x.flip;$("sendBtn").textContent=x.send;$("chatInput").placeholder=x.chat;updateLabels()}
   function sqName(r,c){return files[c]+(8-r)}function renderBoard(){const b=$("board");b.innerHTML="";const rows=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];const cols=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];rows.forEach(r=>cols.forEach(c=>{const sq=sqName(r,c),d=document.createElement("div");d.className="sq "+(((r+c)%2===0)?"light":"dark");if(selected===sq)d.classList.add("selected");const p=state&&state.board?state.board[sq]:null;if(p){const s=document.createElement("span");s.className="piece "+(p===p.toUpperCase()?"whitePiece":"blackPiece");s.textContent=pieces[p]||p;d.appendChild(s)}d.onclick=()=>clickSq(sq);b.appendChild(d)}))}
