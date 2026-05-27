@@ -1428,6 +1428,168 @@ body.poker-clean-mode::after {
     startBtn.onclick=()=>{if(!joined||!currentRoomId)return;socket.emit("startHand",{roomId:currentRoomId})}; foldBtn.onclick=()=>{if(!joined||!currentRoomId)return;socket.emit("playerAction",{roomId:currentRoomId,action:"Fold"})}; callBtn.onclick=()=>{if(!joined||!currentRoomId)return;socket.emit("playerAction",{roomId:currentRoomId,action:"Call"})}; raiseBtn.onclick=()=>{if(!joined||!currentRoomId)return;const amount=prompt(tr().raiseAmount,"50");if(!amount)return;socket.emit("playerAction",{roomId:currentRoomId,action:"Raise",amount:Number(amount)})}; allInBtn.onclick=()=>{if(!joined||!currentRoomId)return;socket.emit("playerAction",{roomId:currentRoomId,action:"AllIn"})};
     applyLanguage();loadMe().catch(()=>{});refreshDashboard().catch(()=>{});
   </script>
+<!--
+Poker Royale - Real Photo Game Cards Patch
+Paste this code exactly BEFORE </body> in server.js
+-->
+
+<script>
+(function () {
+  var PERSIAN = {
+    poker: "\u067e\u0648\u06a9\u0631",
+    chess: "\u0634\u0637\u0631\u0646\u062c",
+    mench: "\u0645\u0646\u0686",
+    backgammon: "\u062a\u062e\u062a\u0647 \u0646\u0631\u062f",
+    hokm: "\u062d\u06a9\u0645",
+    chaharBarg: "\u0686\u0647\u0627\u0631 \u0628\u0631\u06af"
+  };
+
+  var PHOTOS = {
+    poker: "https://source.unsplash.com/1200x900/?poker,cards,chips,casino",
+    chess: "https://source.unsplash.com/1200x900/?chess,board,pieces",
+    mench: "https://source.unsplash.com/1200x900/?ludo,boardgame,dice",
+    backgammon: "https://source.unsplash.com/1200x900/?backgammon,board,dice",
+    hokm: "https://source.unsplash.com/1200x900/?playing,cards,casino",
+    chaharBarg: "https://source.unsplash.com/1200x900/?playing,cards,clubs"
+  };
+
+  function injectStyle() {
+    if (document.getElementById("realPhotoCardsStyle")) return;
+
+    var style = document.createElement("style");
+    style.id = "realPhotoCardsStyle";
+    style.textContent = \`
+      .game-card,
+      .game-tile,
+      .game-item,
+      [data-game] {
+        position: relative !important;
+      }
+
+      .real-photo-game-card {
+        min-height: 176px !important;
+        overflow: hidden !important;
+        border: 1px solid rgba(214, 180, 106, 0.26) !important;
+        background-size: cover !important;
+        background-position: center !important;
+        box-shadow:
+          0 20px 58px rgba(0,0,0,0.46),
+          inset 0 1px 0 rgba(255,255,255,0.08) !important;
+      }
+
+      .real-photo-game-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.76)),
+          radial-gradient(circle at top left, rgba(214,180,106,0.16), transparent 40%);
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .real-photo-game-card::after {
+        content: "";
+        position: absolute;
+        inset: 1px;
+        border-radius: inherit;
+        border: 1px solid rgba(255,255,255,0.055);
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      .real-photo-game-card > * {
+        position: relative !important;
+        z-index: 2 !important;
+      }
+
+      .real-photo-game-card .game-logo,
+      .real-photo-game-card .game-icon,
+      .real-photo-game-card .icon,
+      .real-photo-game-card .logo-box {
+        display: none !important;
+      }
+
+      .real-photo-game-card .game-title,
+      .real-photo-game-card h2,
+      .real-photo-game-card h3,
+      .real-photo-game-card strong {
+        color: #fff7d6 !important;
+        text-shadow: 0 3px 18px rgba(0,0,0,0.82) !important;
+        letter-spacing: -0.2px !important;
+      }
+
+      .real-photo-game-card .game-status,
+      .real-photo-game-card .status,
+      .real-photo-game-card small,
+      .real-photo-game-card p {
+        color: rgba(255,255,255,0.78) !important;
+        text-shadow: 0 2px 12px rgba(0,0,0,0.72) !important;
+      }
+
+      .real-photo-game-card .game-status,
+      .real-photo-game-card .status {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 6px 10px !important;
+        border-radius: 999px !important;
+        background: rgba(0,0,0,0.46) !important;
+        border: 1px solid rgba(214,180,106,0.26) !important;
+        backdrop-filter: blur(8px) !important;
+      }
+
+      @media (max-width: 700px) {
+        .real-photo-game-card {
+          min-height: 150px !important;
+        }
+      }
+    \`;
+
+    document.head.appendChild(style);
+  }
+
+  function cardContains(card, value) {
+    return (card.textContent || "").indexOf(value) !== -1;
+  }
+
+  function setPhoto(card, url) {
+    card.classList.add("real-photo-game-card");
+    card.style.backgroundImage =
+      "linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.76)), url('" + url + "')";
+  }
+
+  function applyRealPhotos() {
+    injectStyle();
+
+    var cards = Array.prototype.slice.call(
+      document.querySelectorAll(".game-card, .game-tile, .game-item, [data-game]")
+    );
+
+    cards.forEach(function (card) {
+      var text = card.textContent || "";
+      var dataGame = (card.getAttribute("data-game") || "").toLowerCase();
+
+      if (cardContains(card, PERSIAN.poker) || dataGame.indexOf("poker") !== -1) setPhoto(card, PHOTOS.poker);
+      if (cardContains(card, PERSIAN.chess) || dataGame.indexOf("chess") !== -1) setPhoto(card, PHOTOS.chess);
+      if (cardContains(card, PERSIAN.mench) || dataGame.indexOf("mench") !== -1 || dataGame.indexOf("ludo") !== -1) setPhoto(card, PHOTOS.mench);
+      if (cardContains(card, PERSIAN.backgammon) || dataGame.indexOf("backgammon") !== -1) setPhoto(card, PHOTOS.backgammon);
+      if (cardContains(card, PERSIAN.hokm) || dataGame.indexOf("hokm") !== -1) setPhoto(card, PHOTOS.hokm);
+      if (cardContains(card, PERSIAN.chaharBarg) || dataGame.indexOf("chahar") !== -1) setPhoto(card, PHOTOS.chaharBarg);
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", applyRealPhotos);
+  } else {
+    applyRealPhotos();
+  }
+
+  setTimeout(applyRealPhotos, 500);
+  setTimeout(applyRealPhotos, 1500);
+})();
+</script>
+
 </body></html>`);
 });
 
