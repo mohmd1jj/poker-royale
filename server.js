@@ -897,6 +897,13 @@ app.get("/", (req, res) => {
     .gameLogo { position:relative; z-index:2; width:98px; height:98px; border-radius:30px; display:grid; place-items:center; background:linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.04)); border:1px solid rgba(255,255,255,.16); box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 18px 40px rgba(0,0,0,.28); flex:0 0 auto; }
     .logoGlyph { font-size:48px; line-height:1; color:var(--accent,#facc15); filter:drop-shadow(0 0 12px color-mix(in srgb,var(--accent,#facc15),transparent 52%)); font-weight:1000; }
     .bottomNav { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(12px + env(safe-area-inset-bottom)); width:min(92%,620px); display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:10px; border:1px solid var(--line); border-radius:28px; background:rgba(0,0,0,.68); backdrop-filter:blur(16px); z-index:30; box-shadow:0 -18px 44px rgba(0,0,0,.35); }
+    .gameCard.photoCard::before { content:""; position:absolute; inset:0; background:radial-gradient(circle at 78% 35%, rgba(214,180,106,.12), transparent 26%); z-index:1; pointer-events:none; }
+    .gameCard.photoCard .gameInfo { max-width:68%; }
+    .gameCard.photoCard .gameLogo { width:72px !important; height:72px !important; border-radius:999px !important; background:rgba(0,0,0,.58) !important; border:1px solid rgba(214,180,106,.30) !important; backdrop-filter: blur(6px); }
+    .gameCard.photoCard .logoGlyph { color:#f4efe2 !important; font-size:21px !important; letter-spacing:.5px !important; }
+    .gameCard.photoCard .gameTitle { text-shadow:0 2px 16px rgba(0,0,0,.62); }
+    .gameCard.photoCard .gameDesc { color:#e7ece8 !important; text-shadow:0 1px 10px rgba(0,0,0,.62); }
+
     .navItem { border:none; border-radius:20px; padding:13px 8px; color:#dce7df; background:transparent; font-weight:1000; font-size:13px; text-align:center; }
     .navItem.active { color:#07121f; background:linear-gradient(180deg,#fff7ad,var(--gold)); }
     @media (min-width:760px) { .gamesGrid{grid-template-columns:1fr 1fr}.gameCard{min-height:190px}.gameCard:first-child{grid-column:span 2}.gameTitle{font-size:38px} }
@@ -1002,13 +1009,14 @@ h1{
 }
 .gamesGrid{ gap:12px !important; }
 .gameCard{
-  min-height:118px !important;
-  border-radius:20px !important;
-  padding:16px 17px !important;
-  border-color:rgba(214,180,106,.16) !important;
+  min-height:154px !important;
+  border-radius:22px !important;
+  padding:18px 18px !important;
+  border-color:rgba(214,180,106,.20) !important;
   background:
-    linear-gradient(145deg,rgba(10,14,13,.86),rgba(9,23,16,.66)) !important;
-  box-shadow:0 16px 42px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.035) !important;
+    linear-gradient(90deg,rgba(0,0,0,.86),rgba(0,0,0,.60) 44%,rgba(0,0,0,.22)),
+    var(--photo, linear-gradient(145deg,rgba(10,14,13,.86),rgba(9,23,16,.66))) center/cover no-repeat !important;
+  box-shadow:0 18px 46px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.045) !important;
 }
 .gameCard:after{
   width:150px !important;
@@ -1142,12 +1150,12 @@ h1{
       gamesTitle:"\u0644\u06CC\u0633\u062A \u0628\u0627\u0632\u06CC\u200C\u0647\u0627", homePill:"\u0635\u0641\u062D\u0647 \u0627\u0635\u0644\u06CC", navHome:"\u062E\u0627\u0646\u0647", navGames:"\u0628\u0627\u0632\u06CC\u200C\u0647\u0627", navProfile:"\u067E\u0631\u0648\u0641\u0627\u06CC\u0644",
       active:"\u0641\u0639\u0627\u0644", soon:"\u0628\u0647\u200C\u0632\u0648\u062F\u06CC",
       games:[
-        {title:"\u067E\u0648\u06A9\u0631", desc:"Texas Hold\u2019em \u0628\u0627 \u0645\u06CC\u0632 \u0622\u0646\u0644\u0627\u06CC\u0646 \u0648 \u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E \u0645\u0634\u062A\u0631\u06A9", icon:"A\u2660", href:"/games/poker", active:true, accent:"#facc15"},
-        {title:"\u0634\u0637\u0631\u0646\u062C", desc:"\u0628\u0627\u0632\u06CC \u0627\u0633\u062A\u0631\u0627\u062A\u0698\u06CC\u06A9 \u062F\u0648\u0646\u0641\u0631\u0647 \u0628\u0627 \u0627\u062A\u0627\u0642 \u0622\u0646\u0644\u0627\u06CC\u0646", icon:"\u265E", href:"#", active:false, accent:"#fff7ad"},
-        {title:"\u0645\u0646\u0686", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9 \u0648 \u0633\u0631\u06AF\u0631\u0645\u200C\u06A9\u0646\u0646\u062F\u0647 \u0628\u0631\u0627\u06CC \u0631\u0642\u0627\u0628\u062A \u062F\u0648\u0633\u062A\u0627\u0646\u0647", icon:"\u25CF\u25CF", href:"#", active:false, accent:"#22c55e"},
-        {title:"\u062A\u062E\u062A\u0647 \u0646\u0631\u062F", desc:"\u0631\u0642\u0627\u0628\u062A \u0633\u0631\u06CC\u0639 \u0628\u0627 \u062A\u0627\u0633 \u0648 \u0645\u0647\u0631\u0647\u200C\u0647\u0627\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9", icon:"\u26AB\u26AA", href:"#", active:false, accent:"#f59e0b"},
-        {title:"\u062D\u06A9\u0645", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0627\u0631\u062A\u06CC \u062A\u06CC\u0645\u06CC \u0628\u0627 \u0642\u0648\u0627\u0646\u06CC\u0646 \u0622\u0634\u0646\u0627", icon:"\u2654", href:"#", active:false, accent:"#ef4444"},
-        {title:"\u0686\u0647\u0627\u0631 \u0628\u0631\u06AF", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0627\u0631\u062A\u06CC \u0633\u0631\u06CC\u0639 \u0648 \u0631\u0642\u0627\u0628\u062A\u06CC", icon:"\u26634", href:"#", active:false, accent:"#38bdf8"}
+        {title:"\u067E\u0648\u06A9\u0631", desc:"Texas Hold\u2019em \u0628\u0627 \u0645\u06CC\u0632 \u0622\u0646\u0644\u0627\u06CC\u0646 \u0648 \u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E \u0645\u0634\u062A\u0631\u06A9", icon:"POKER", photo:"https://source.unsplash.com/1200x900/?poker,cards,chips", href:"/games/poker", active:true, accent:"#facc15"},
+        {title:"\u0634\u0637\u0631\u0646\u062C", desc:"\u0628\u0627\u0632\u06CC \u0627\u0633\u062A\u0631\u0627\u062A\u0698\u06CC\u06A9 \u062F\u0648\u0646\u0641\u0631\u0647 \u0628\u0627 \u0627\u062A\u0627\u0642 \u0622\u0646\u0644\u0627\u06CC\u0646", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"#", active:false, accent:"#fff7ad"},
+        {title:"\u0645\u0646\u0686", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9 \u0648 \u0633\u0631\u06AF\u0631\u0645\u200C\u06A9\u0646\u0646\u062F\u0647 \u0628\u0631\u0627\u06CC \u0631\u0642\u0627\u0628\u062A \u062F\u0648\u0633\u062A\u0627\u0646\u0647", icon:"LUDO", photo:"https://source.unsplash.com/1200x900/?ludo,boardgame,dice", href:"#", active:false, accent:"#22c55e"},
+        {title:"\u062A\u062E\u062A\u0647 \u0646\u0631\u062F", desc:"\u0631\u0642\u0627\u0628\u062A \u0633\u0631\u06CC\u0639 \u0628\u0627 \u062A\u0627\u0633 \u0648 \u0645\u0647\u0631\u0647\u200C\u0647\u0627\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9", icon:"BACK", photo:"https://source.unsplash.com/1200x900/?backgammon,dice,board", href:"#", active:false, accent:"#f59e0b"},
+        {title:"\u062D\u06A9\u0645", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0627\u0631\u062A\u06CC \u062A\u06CC\u0645\u06CC \u0628\u0627 \u0642\u0648\u0627\u0646\u06CC\u0646 \u0622\u0634\u0646\u0627", icon:"HOKM", photo:"https://source.unsplash.com/1200x900/?playing,cards,table", href:"#", active:false, accent:"#ef4444"},
+        {title:"\u0686\u0647\u0627\u0631 \u0628\u0631\u06AF", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0627\u0631\u062A\u06CC \u0633\u0631\u06CC\u0639 \u0648 \u0631\u0642\u0627\u0628\u062A\u06CC", icon:"CARD", photo:"https://source.unsplash.com/1200x900/?playing,cards,clubs", href:"#", active:false, accent:"#38bdf8"}
       ]
     };
     const en = {
@@ -1157,12 +1165,12 @@ h1{
       gamesTitle:"Games List", homePill:"Home", navHome:"Home", navGames:"Games", navProfile:"Profile",
       active:"Active", soon:"Soon",
       games:[
-        {title:"Poker", desc:"Texas Hold\u2019em with online table and shared chip balance", icon:"A\u2660", href:"/games/poker", active:true, accent:"#facc15"},
-        {title:"Chess", desc:"Two-player strategy game with online room", icon:"\u265E", href:"#", active:false, accent:"#fff7ad"},
-        {title:"Ludo", desc:"Classic friendly competition board game", icon:"\u25CF\u25CF", href:"#", active:false, accent:"#22c55e"},
-        {title:"Backgammon", desc:"Fast dice and classic checker strategy", icon:"\u26AB\u26AA", href:"#", active:false, accent:"#f59e0b"},
-        {title:"Hokm", desc:"Team card game with familiar rules", icon:"\u2654", href:"#", active:false, accent:"#ef4444"},
-        {title:"Chahar Barg", desc:"Fast competitive Persian card game", icon:"\u26634", href:"#", active:false, accent:"#38bdf8"}
+        {title:"Poker", desc:"Texas Hold\u2019em with online table and shared chip balance", icon:"POKER", photo:"https://source.unsplash.com/1200x900/?poker,cards,chips", href:"/games/poker", active:true, accent:"#facc15"},
+        {title:"Chess", desc:"Two-player strategy game with online room", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"#", active:false, accent:"#fff7ad"},
+        {title:"Ludo", desc:"Classic friendly competition board game", icon:"LUDO", photo:"https://source.unsplash.com/1200x900/?ludo,boardgame,dice", href:"#", active:false, accent:"#22c55e"},
+        {title:"Backgammon", desc:"Fast dice and classic checker strategy", icon:"BACK", photo:"https://source.unsplash.com/1200x900/?backgammon,dice,board", href:"#", active:false, accent:"#f59e0b"},
+        {title:"Hokm", desc:"Team card game with familiar rules", icon:"HOKM", photo:"https://source.unsplash.com/1200x900/?playing,cards,table", href:"#", active:false, accent:"#ef4444"},
+        {title:"Chahar Barg", desc:"Fast competitive Persian card game", icon:"CARD", photo:"https://source.unsplash.com/1200x900/?playing,cards,clubs", href:"#", active:false, accent:"#38bdf8"}
       ]
     };
     let currentLang = localStorage.getItem("pokerLang") || "fa";
@@ -1184,9 +1192,9 @@ h1{
       grid.innerHTML="";
       t.games.forEach((g)=>{
         const a=document.createElement("a");
-        a.className="gameCard"+(g.active?" active":"");
+        a.className="gameCard photoCard"+(g.active?" active":"");
         a.href=g.href;
-        a.style.setProperty("--accent",g.accent);
+        a.style.setProperty("--accent",g.accent); if(g.photo){a.style.setProperty("--photo", "url('" + g.photo + "')");}
         if(!g.active){ a.onclick=(e)=>{ e.preventDefault(); alert(currentLang === "fa" ? "\u0627\u06CC\u0646 \u0628\u0627\u0632\u06CC \u0628\u0647\u200C\u0632\u0648\u062F\u06CC \u0641\u0639\u0627\u0644 \u0645\u06CC\u200C\u0634\u0648\u062F." : "This game is coming soon."); }; }
         a.innerHTML='<div class="gameInfo"><span class="gameStatus">'+(g.active?t.active:t.soon)+'</span><h3 class="gameTitle"></h3><p class="gameDesc"></p></div><div class="gameLogo"><div class="logoGlyph"></div></div>';
         a.querySelector(".gameTitle").textContent=g.title;
@@ -1201,7 +1209,7 @@ h1{
         document.getElementById('walletAmount').textContent=fmt(j.user ? j.user.chips : 0);
       }catch(e){ document.getElementById('walletAmount').textContent='0'; }
     }
-    render(); loadMe();
+    console.log("Real Photo Cards Full v3 loaded"); render(); loadMe();
   </script>
 </body>
 </html>`);
