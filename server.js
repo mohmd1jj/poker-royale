@@ -94,6 +94,22 @@ async function initDb() {
     )
   `);
 
+  
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chip_transactions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      username VARCHAR(32),
+      type VARCHAR(16) NOT NULL,
+      package_name VARCHAR(64) NOT NULL,
+      chips INTEGER NOT NULL DEFAULT 0,
+      amount_label VARCHAR(64) NOT NULL DEFAULT '',
+      status VARCHAR(24) NOT NULL DEFAULT 'pending',
+      note TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   console.log("Database ready.");
 }
 
@@ -806,6 +822,126 @@ function addRoomChatMessage(room, message) {
 }
 
 
+
+app.post("/api/chip-request", async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) return res.status(401).json({ error: "Please login first." });
+
+    const user = await getUserById(userId);
+    if (!user) return res.status(401).json({ error: "Please login first." });
+
+    const type = String(req.body.type || "").trim();
+    const packageName = String(req.body.packageName || "").trim().slice(0, 64);
+    const chips = Math.max(0, parseInt(req.body.chips || "0", 10) || 0);
+    const amountLabel = String(req.body.amountLabel || "").trim().slice(0, 64);
+    const note = String(req.body.note || "").trim().slice(0, 300);
+
+    if (!["buy", "sell"].includes(type)) return res.status(400).json({ error: "Invalid request type." });
+    if (!packageName || chips <= 0) return res.status(400).json({ error: "Invalid package." });
+
+    if (type === "sell" && user.chips < chips) {
+      return res.status(400).json({ error: "Not enough chips for this sell request." });
+    }
+
+    await pool.query(
+      `INSERT INTO chip_transactions (user_id, username, type, package_name, chips, amount_label, status, note)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)`,
+      [user.id, user.username, type, packageName, chips, amountLabel, note]
+    );
+
+    res.json({
+      ok: true,
+      message: type === "buy"
+        ? "Purchase request submitted. Admin approval is required."
+        : "Sell request submitted. Admin approval is required."
+    });
+  } catch (err) {
+    console.error("chip-request error:", err);
+    res.status(500).json({ error: "Request failed." });
+  }
+});
+
+app.get("/api/chip-requests", async (req, res) => {
+  try {
+    const userId = getSessionUserId(req);
+    if (!userId) return res.status(401).json({ error: "Please login first." });
+
+    const result = await pool.query(
+      `SELECT id, type, package_name, chips, amount_label, status, note, created_at
+       FROM chip_transactions
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [userId]
+    );
+
+    res.json({ requests: result.rows });
+  } catch (err) {
+    console.error("chip-requests error:", err);
+    res.status(500).json({ error: "Request failed." });
+  }
+});
+
+
+
+app.get("/shop", (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#050806" />
+  <title>Chip Store - Poker Royale</title>
+  <style>
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{margin:0;min-height:100vh;font-family:Arial,Tahoma,sans-serif;color:#f4efe2;background:radial-gradient(circle at 50% -10%,rgba(214,180,106,.12),transparent 34%),radial-gradient(circle at 10% 10%,rgba(28,72,48,.18),transparent 34%),linear-gradient(180deg,#070908 0%,#07110c 48%,#030504 100%);padding:calc(14px + env(safe-area-inset-top)) 12px calc(28px + env(safe-area-inset-bottom))}
+    .wrap{width:100%;max-width:760px;margin:0 auto}.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.btnTop{border:1px solid rgba(214,180,106,.22);border-radius:16px;padding:11px 14px;color:#f4efe2;text-decoration:none;background:rgba(255,255,255,.04);font-weight:900}.lang{border:none;border-radius:16px;padding:11px 14px;background:linear-gradient(180deg,#d6b46a,#9b7c38);color:#080c0a;font-weight:1000}
+    .hero,.card,.panel{border:1px solid rgba(214,180,106,.18);border-radius:24px;background:linear-gradient(145deg,rgba(7,10,9,.88),rgba(10,28,18,.62));box-shadow:0 22px 60px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.045);padding:16px;margin-bottom:12px;overflow:hidden}.hero{position:relative}.hero:after{content:"";position:absolute;width:230px;height:230px;border-radius:50%;border:42px solid rgba(214,180,106,.04);left:-95px;bottom:-120px}
+    .brand{display:flex;align-items:center;gap:12px;position:relative;z-index:2}.chipLogo{width:60px;height:60px;border-radius:999px;background-image:var(--chip);background-size:cover;background-position:center;border:1px solid rgba(255,255,255,.12);box-shadow:0 12px 30px rgba(0,0,0,.35)}h1{margin:0;font-size:28px;color:#f4efe2;line-height:1.2}.muted{color:#aeb9b2;font-size:13px;line-height:1.8;margin:6px 0 0}.balance{margin-top:14px;border:1px solid rgba(214,180,106,.14);border-radius:18px;background:rgba(0,0,0,.25);padding:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:2}.balance strong{color:#d6b46a;font-size:22px}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.tab{border:1px solid rgba(214,180,106,.18);background:rgba(255,255,255,.04);color:#f4efe2;border-radius:16px;padding:12px;font-weight:1000}.tab.active{background:linear-gradient(180deg,#d6b46a,#9b7c38);color:#080c0a}.grid{display:grid;gap:12px}.package{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}.miniChip{width:50px;height:50px;border-radius:999px;background-image:var(--chip);background-size:cover;background-position:center;box-shadow:0 10px 24px rgba(0,0,0,.30)}.pTitle{font-size:19px;font-weight:1000;color:#fff7d6;margin-bottom:5px}.pMeta{color:#aeb9b2;font-size:13px;line-height:1.7}.pAmount{color:#d6b46a;font-weight:1000;margin-top:4px}.actions{grid-column:1 / -1;display:grid;grid-template-columns:1fr;gap:8px}.primary{border:none;border-radius:16px;background:linear-gradient(180deg,#d6b46a,#9b7c38);color:#080c0a;padding:12px;font-weight:1000}.secondary{border:1px solid rgba(214,180,106,.18);border-radius:16px;background:rgba(255,255,255,.04);color:#f4efe2;padding:12px;font-weight:900}
+    .note{font-size:12px;line-height:1.9;color:#aeb9b2}.requests{display:grid;gap:8px}.req{border:1px solid rgba(214,180,106,.12);border-radius:16px;background:rgba(0,0,0,.20);padding:11px;color:#d9e1dc;font-size:13px;line-height:1.8}.status{color:#d6b46a;font-weight:1000}.hidden{display:none!important}@media(min-width:700px){.grid{grid-template-columns:1fr 1fr}.card.wide{grid-column:span 2}}@media(max-width:480px){h1{font-size:24px}.hero,.card,.panel{border-radius:20px;padding:13px}.chipLogo{width:52px;height:52px}.package{grid-template-columns:auto 1fr}.miniChip{width:44px;height:44px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top"><a class="btnTop" href="/" id="homeBtn"></a><a class="btnTop" href="/account" id="accountBtn"></a><button class="lang" id="langBtn" type="button">EN</button></div>
+    <section class="hero">
+      <div class="brand"><div class="chipLogo"></div><div><h1 id="title"></h1><p class="muted" id="sub"></p></div></div>
+      <div class="balance"><span id="balanceLabel"></span><strong id="balanceAmount">0</strong></div>
+    </section>
+    <section class="panel">
+      <div class="tabs"><button class="tab active" id="buyTab"></button><button class="tab" id="sellTab"></button></div>
+      <div class="note" id="safeNote"></div>
+    </section>
+    <section class="grid" id="packages"></section>
+    <section class="panel"><h2 id="historyTitle" style="margin:0 0 10px;color:#f4efe2;font-size:20px"></h2><div class="requests" id="requests"></div></section>
+  </main>
+<script>
+  const chipImage = "";
+  document.documentElement.style.setProperty("--chip", "url('" + chipImage + "')");
+  const fa={home:"\u0635\u0641\u062d\u0647 \u0627\u0635\u0644\u06cc",account:"\u067e\u0631\u0648\u0641\u0627\u06cc\u0644",title:"\u0641\u0631\u0648\u0634\u06af\u0627\u0647 \u0686\u06cc\u067e",sub:"\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u062e\u0631\u06cc\u062f \u0648 \u0641\u0631\u0648\u0634 \u0686\u06cc\u067e \u0628\u0631\u0627\u06cc \u0647\u0645\u0647 \u0628\u0627\u0632\u06cc\u200c\u0647\u0627",balance:"\u0645\u0648\u062c\u0648\u062f\u06cc \u0641\u0639\u0644\u06cc",buy:"\u062e\u0631\u06cc\u062f \u0686\u06cc\u067e",sell:"\u0641\u0631\u0648\u0634 \u0686\u06cc\u067e",safe:"\u0627\u06cc\u0646 \u0646\u0633\u062e\u0647 \u0641\u0639\u0644\u0627\u064b \u062f\u0631\u062e\u0648\u0627\u0633\u062a \u062b\u0628\u062a \u0645\u06cc\u200c\u06a9\u0646\u062f \u0648 \u067e\u0631\u062f\u0627\u062e\u062a \u0648\u0627\u0642\u0639\u06cc \u06cc\u0627 \u062a\u0633\u0648\u06cc\u0647 \u062e\u0648\u062f\u06a9\u0627\u0631 \u0627\u0646\u062c\u0627\u0645 \u0646\u0645\u06cc\u200c\u062f\u0647\u062f.",history:"\u062f\u0631\u062e\u0648\u0627\u0633\u062a\u200c\u0647\u0627\u06cc \u0627\u062e\u06cc\u0631",request:"\u062b\u0628\u062a \u062f\u0631\u062e\u0648\u0627\u0633\u062a",login:"\u0627\u0648\u0644 \u0648\u0627\u0631\u062f \u062d\u0633\u0627\u0628 \u0634\u0648.",pending:"\u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631",empty:"\u0647\u0646\u0648\u0632 \u062f\u0631\u062e\u0648\u0627\u0633\u062a\u06cc \u0646\u062f\u0627\u0631\u06cc."};
+  const en={home:"Home",account:"Profile",title:"Chip Store",sub:"Buy and sell chip requests for all games",balance:"Current balance",buy:"Buy Chips",sell:"Sell Chips",safe:"This version only submits requests. It does not process real payments or automatic settlement.",history:"Recent requests",request:"Submit Request",login:"Please login first.",pending:"Pending",empty:"No requests yet."};
+  const buyPackages=[{n:"Bronze",c:1000,a:"Starter"},{n:"Silver",c:5000,a:"Popular"},{n:"Gold",c:15000,a:"Best value"},{n:"Royal",c:50000,a:"VIP"}];
+  const sellPackages=[{n:"Small Sell",c:1000,a:"Request"},{n:"Medium Sell",c:5000,a:"Request"},{n:"Large Sell",c:15000,a:"Request"}];
+  let currentLang=localStorage.getItem("pokerLang")||"fa",mode="buy",me=null;
+  const $=id=>document.getElementById(id),fmt=n=>Number(n||0).toLocaleString(currentLang==="fa"?"fa-IR":"en-US"),t=()=>currentLang==="fa"?fa:en;
+  function apply(){const x=t();document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==="fa"?"rtl":"ltr";$("homeBtn").textContent=x.home;$("accountBtn").textContent=x.account;$("langBtn").textContent=currentLang==="fa"?"EN":"FA";$("title").textContent=x.title;$("sub").textContent=x.sub;$("balanceLabel").textContent=x.balance;$("buyTab").textContent=x.buy;$("sellTab").textContent=x.sell;$("safeNote").textContent=x.safe;$("historyTitle").textContent=x.history;renderPackages();renderBalance()}
+  function renderBalance(){$("balanceAmount").textContent=me?fmt(me.chips):"0"}
+  function renderPackages(){const list=mode==="buy"?buyPackages:sellPackages;$("buyTab").classList.toggle("active",mode==="buy");$("sellTab").classList.toggle("active",mode==="sell");const x=t();$("packages").innerHTML=list.map(function(p,i){return '<section class="card package '+(i===0?'wide':'')+'"><div class="miniChip"></div><div><div class="pTitle">'+p.n+'</div><div class="pMeta">'+fmt(p.c)+' chips</div><div class="pAmount">'+p.a+'</div></div><div class="actions"><button class="primary" onclick="submitReq(\\''+p.n+'\\','+p.c+')">'+x.request+'</button></div></section>';}).join("")}
+  async function api(path,body){const r=await fetch(path,{method:body?"POST":"GET",headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw new Error(j.error||"Request failed");return j}
+  async function loadMe(){try{const j=await api("/api/me");me=j.user;renderBalance()}catch(e){me=null;renderBalance()}}
+  async function loadRequests(){try{const j=await api("/api/chip-requests");const x=t();$("requests").innerHTML=(j.requests||[]).length?(j.requests||[]).map(function(r){return '<div class="req">'+r.type+' - '+r.package_name+' - '+fmt(r.chips)+' chips<br><span class="status">'+(r.status||x.pending)+'</span></div>';}).join(""):'<div class="req">'+x.empty+'</div>'}catch(e){$("requests").innerHTML='<div class="req">'+t().login+'</div>'}}
+  async function submitReq(name,chips){try{if(!me){alert(t().login);location.href="/account";return}const j=await api("/api/chip-request",{type:mode,packageName:name,chips:chips,amountLabel:name,note:""});alert(j.message);await loadRequests()}catch(e){alert(e.message)}}
+  $("buyTab").onclick=()=>{mode="buy";renderPackages()};$("sellTab").onclick=()=>{mode="sell";renderPackages()};$("langBtn").onclick=()=>{currentLang=currentLang==="fa"?"en":"fa";localStorage.setItem("pokerLang",currentLang);apply();loadRequests()};
+  apply();loadMe().then(loadRequests);
+</script>
+</body>
+</html>`);
+});
+
+
 app.get("/", (req, res) => {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(`<!doctype html>
@@ -1151,7 +1287,7 @@ h1{
       active:"\u0641\u0639\u0627\u0644", soon:"\u0628\u0647\u200C\u0632\u0648\u062F\u06CC",
       games:[
         {title:"\u067E\u0648\u06A9\u0631", desc:"Texas Hold\u2019em \u0628\u0627 \u0645\u06CC\u0632 \u0622\u0646\u0644\u0627\u06CC\u0646 \u0648 \u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E \u0645\u0634\u062A\u0631\u06A9", icon:"POKER", photo:"https://source.unsplash.com/1200x900/?poker,cards,chips", href:"/games/poker", active:true, accent:"#facc15"},
-        {title:"\u0634\u0637\u0631\u0646\u062C", desc:"\u0628\u0627\u0632\u06CC \u0627\u0633\u062A\u0631\u0627\u062A\u0698\u06CC\u06A9 \u062F\u0648\u0646\u0641\u0631\u0647 \u0628\u0627 \u0627\u062A\u0627\u0642 \u0622\u0646\u0644\u0627\u06CC\u0646", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"/games/chess", active:false, accent:"#fff7ad"},
+        {title:"\u0634\u0637\u0631\u0646\u062C", desc:"\u0628\u0627\u0632\u06CC \u0627\u0633\u062A\u0631\u0627\u062A\u0698\u06CC\u06A9 \u062F\u0648\u0646\u0641\u0631\u0647 \u0628\u0627 \u0627\u062A\u0627\u0642 \u0622\u0646\u0644\u0627\u06CC\u0646", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"#", active:false, accent:"#fff7ad"},
         {title:"\u0645\u0646\u0686", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9 \u0648 \u0633\u0631\u06AF\u0631\u0645\u200C\u06A9\u0646\u0646\u062F\u0647 \u0628\u0631\u0627\u06CC \u0631\u0642\u0627\u0628\u062A \u062F\u0648\u0633\u062A\u0627\u0646\u0647", icon:"LUDO", photo:"https://source.unsplash.com/1200x900/?ludo,boardgame,dice", href:"#", active:false, accent:"#22c55e"},
         {title:"\u062A\u062E\u062A\u0647 \u0646\u0631\u062F", desc:"\u0631\u0642\u0627\u0628\u062A \u0633\u0631\u06CC\u0639 \u0628\u0627 \u062A\u0627\u0633 \u0648 \u0645\u0647\u0631\u0647\u200C\u0647\u0627\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9", icon:"BACK", photo:"https://source.unsplash.com/1200x900/?backgammon,dice,board", href:"#", active:false, accent:"#f59e0b"},
         {title:"\u062D\u06A9\u0645", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0627\u0631\u062A\u06CC \u062A\u06CC\u0645\u06CC \u0628\u0627 \u0642\u0648\u0627\u0646\u06CC\u0646 \u0622\u0634\u0646\u0627", icon:"HOKM", photo:"https://source.unsplash.com/1200x900/?playing,cards,table", href:"#", active:false, accent:"#ef4444"},
@@ -1166,7 +1302,7 @@ h1{
       active:"Active", soon:"Soon",
       games:[
         {title:"Poker", desc:"Texas Hold\u2019em with online table and shared chip balance", icon:"POKER", photo:"https://source.unsplash.com/1200x900/?poker,cards,chips", href:"/games/poker", active:true, accent:"#facc15"},
-        {title:"Chess", desc:"Two-player strategy game with online room", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"/games/chess", active:false, accent:"#fff7ad"},
+        {title:"Chess", desc:"Two-player strategy game with online room", icon:"CHESS", photo:"https://source.unsplash.com/1200x900/?chess,board,pieces", href:"#", active:false, accent:"#fff7ad"},
         {title:"Ludo", desc:"Classic friendly competition board game", icon:"LUDO", photo:"https://source.unsplash.com/1200x900/?ludo,boardgame,dice", href:"#", active:false, accent:"#22c55e"},
         {title:"Backgammon", desc:"Fast dice and classic checker strategy", icon:"BACK", photo:"https://source.unsplash.com/1200x900/?backgammon,dice,board", href:"#", active:false, accent:"#f59e0b"},
         {title:"Hokm", desc:"Team card game with familiar rules", icon:"HOKM", photo:"https://source.unsplash.com/1200x900/?playing,cards,table", href:"#", active:false, accent:"#ef4444"},
@@ -1293,7 +1429,7 @@ button,.small-btn,.primaryBtn,.secondaryBtn,.homeBtn{
   <script>
     const fa={home:"\u0635\u0641\u062D\u0647 \u0627\u0635\u0644\u06CC",title:"\u0646\u0627\u062D\u06CC\u0647 \u06A9\u0627\u0631\u0628\u0631\u06CC",sub:"\u0648\u0631\u0648\u062F\u060C \u0627\u062D\u0631\u0627\u0632 \u0647\u0648\u06CC\u062A \u0648 \u0645\u062F\u06CC\u0631\u06CC\u062A \u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E",lang:"EN",username:"\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC",password:"\u0631\u0645\u0632 \u0639\u0628\u0648\u0631",login:"\u0648\u0631\u0648\u062F",register:"\u062B\u0628\u062A\u200C\u0646\u0627\u0645",guestNote:"\u0642\u0628\u0644 \u0627\u0632 \u0648\u0631\u0648\u062F \u0641\u0642\u0637 \u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC\u060C \u0631\u0645\u0632 \u0639\u0628\u0648\u0631\u060C \u062A\u063A\u06CC\u06CC\u0631 \u0632\u0628\u0627\u0646 \u0648 \u0635\u0641\u062D\u0647 \u0627\u0635\u0644\u06CC \u062F\u0631 \u062F\u0633\u062A\u0631\u0633 \u0627\u0633\u062A.",welcome:"\u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u060C",shared:"\u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E \u0628\u06CC\u0646 \u0647\u0645\u0647 \u0628\u0627\u0632\u06CC\u200C\u0647\u0627 \u0645\u0634\u062A\u0631\u06A9 \u0627\u0633\u062A.",bonus:"\u062C\u0627\u06CC\u0632\u0647 \u0631\u0648\u0632\u0627\u0646\u0647",reload:"\u0634\u0627\u0631\u0698 \u0686\u06CC\u067E",buy:"\u062E\u0631\u06CC\u062F \u0686\u06CC\u067E",sell:"\u0641\u0631\u0648\u0634 \u0686\u06CC\u067E",logout:"\u062E\u0631\u0648\u062C",soon:"\u0627\u06CC\u0646 \u06AF\u0632\u06CC\u0646\u0647 \u0628\u0647\u200C\u0632\u0648\u062F\u06CC \u0641\u0639\u0627\u0644 \u0645\u06CC\u200C\u0634\u0648\u062F."};
     const en={home:"Home",title:"Account",sub:"Login, authentication and chip balance management",lang:"FA",username:"Username",password:"Password",login:"Login",register:"Register",guestNote:"Before login, only language, username, password and home are available.",welcome:"Welcome,",shared:"Chip balance is shared between all games.",bonus:"Daily Bonus",reload:"Reload Chips",buy:"Buy Chips",sell:"Sell Chips",logout:"Logout",soon:"This option is coming soon."};
-    let currentLang=localStorage.getItem('pokerLang')||'fa';let currentUser=null;const $=id=>document.getElementById(id);const fmt=n=>Number(n||0).toLocaleString(currentLang==='fa'?'fa-IR':'en-US');function t(){return currentLang==='fa'?fa:en}function apply(){const x=t();document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==='fa'?'rtl':'ltr';$('homeTop').textContent=x.home;$('pageTitle').textContent=x.title;$('pageSub').textContent=x.sub;$('langBtn').textContent=x.lang;$('username').placeholder=x.username;$('password').placeholder=x.password;$('loginBtn').textContent=x.login;$('registerBtn').textContent=x.register;$('guestNote').textContent=x.guestNote;$('welcomeText').textContent=x.welcome;$('sharedNote').textContent=x.shared;$('bonusBtn').textContent=x.bonus;$('reloadBtn').textContent=x.reload;$('buyBtn').textContent=x.buy;$('sellBtn').textContent=x.sell;$('logoutBtn').textContent=x.logout;renderUser()}function renderUser(){if(currentUser){$('guestBox').classList.add('hidden');$('userBox').classList.remove('hidden');$('accountName').textContent=currentUser.username;$('chipsAmount').textContent=fmt(currentUser.chips)}else{$('guestBox').classList.remove('hidden');$('userBox').classList.add('hidden')}}async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw new Error(j.error||'Request failed');return j}async function loadMe(){try{const j=await api('/api/me');currentUser=j.user;renderUser()}catch(e){currentUser=null;renderUser()}}$('langBtn').onclick=()=>{currentLang=currentLang==='fa'?'en':'fa';localStorage.setItem('pokerLang',currentLang);apply()};$('loginBtn').onclick=async()=>{try{const j=await api('/api/login',{username:$('username').value,password:$('password').value});currentUser=j.user;apply()}catch(e){alert(e.message)}};$('registerBtn').onclick=async()=>{try{const j=await api('/api/register',{username:$('username').value,password:$('password').value});currentUser=j.user;apply()}catch(e){alert(e.message)}};$('logoutBtn').onclick=async()=>{await api('/api/logout',{});currentUser=null;apply()};$('bonusBtn').onclick=async()=>{try{const j=await api('/api/daily-bonus',{});alert(j.message);await loadMe()}catch(e){alert(e.message)}};$('reloadBtn').onclick=async()=>{try{const j=await api('/api/reload-chips',{});alert(j.message);await loadMe()}catch(e){alert(e.message)}};$('buyBtn').onclick=()=>alert(t().soon);$('sellBtn').onclick=()=>alert(t().soon);apply();loadMe();
+    let currentLang=localStorage.getItem('pokerLang')||'fa';let currentUser=null;const $=id=>document.getElementById(id);const fmt=n=>Number(n||0).toLocaleString(currentLang==='fa'?'fa-IR':'en-US');function t(){return currentLang==='fa'?fa:en}function apply(){const x=t();document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==='fa'?'rtl':'ltr';$('homeTop').textContent=x.home;$('pageTitle').textContent=x.title;$('pageSub').textContent=x.sub;$('langBtn').textContent=x.lang;$('username').placeholder=x.username;$('password').placeholder=x.password;$('loginBtn').textContent=x.login;$('registerBtn').textContent=x.register;$('guestNote').textContent=x.guestNote;$('welcomeText').textContent=x.welcome;$('sharedNote').textContent=x.shared;$('bonusBtn').textContent=x.bonus;$('reloadBtn').textContent=x.reload;$('buyBtn').textContent=x.buy;$('sellBtn').textContent=x.sell;$('logoutBtn').textContent=x.logout;renderUser()}function renderUser(){if(currentUser){$('guestBox').classList.add('hidden');$('userBox').classList.remove('hidden');$('accountName').textContent=currentUser.username;$('chipsAmount').textContent=fmt(currentUser.chips)}else{$('guestBox').classList.remove('hidden');$('userBox').classList.add('hidden')}}async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw new Error(j.error||'Request failed');return j}async function loadMe(){try{const j=await api('/api/me');currentUser=j.user;renderUser()}catch(e){currentUser=null;renderUser()}}$('langBtn').onclick=()=>{currentLang=currentLang==='fa'?'en':'fa';localStorage.setItem('pokerLang',currentLang);apply()};$('loginBtn').onclick=async()=>{try{const j=await api('/api/login',{username:$('username').value,password:$('password').value});currentUser=j.user;apply()}catch(e){alert(e.message)}};$('registerBtn').onclick=async()=>{try{const j=await api('/api/register',{username:$('username').value,password:$('password').value});currentUser=j.user;apply()}catch(e){alert(e.message)}};$('logoutBtn').onclick=async()=>{await api('/api/logout',{});currentUser=null;apply()};$('bonusBtn').onclick=async()=>{try{const j=await api('/api/daily-bonus',{});alert(j.message);await loadMe()}catch(e){alert(e.message)}};$('reloadBtn').onclick=async()=>{try{const j=await api('/api/reload-chips',{});alert(j.message);await loadMe()}catch(e){alert(e.message)}};$('buyBtn').onclick=()=>{location.href='/shop?mode=buy'};$('sellBtn').onclick=()=>{location.href='/shop?mode=sell'};apply();loadMe();
   </script>
 </body>
 </html>`);
@@ -1302,66 +1438,6 @@ button,.small-btn,.primaryBtn,.secondaryBtn,.homeBtn{
 app.get("/poker", (req, res) => res.redirect("/games/poker"));
 
 app.get("/games/chess", (req, res) => res.redirect("/"));
-
-app.get("/games/chess", (req, res) => {
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.send(`<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#050806" />
-  <title>Chess - Poker Royale</title>
-  <style>
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    body{margin:0;min-height:100vh;font-family:Arial,Tahoma,sans-serif;color:#f4efe2;background:radial-gradient(circle at 50% -10%,rgba(214,180,106,.12),transparent 34%),radial-gradient(circle at 10% 10%,rgba(28,72,48,.20),transparent 34%),linear-gradient(180deg,#070908 0%,#07110c 48%,#030504 100%);padding:calc(14px + env(safe-area-inset-top)) 12px calc(28px + env(safe-area-inset-bottom))}
-    .wrap{width:100%;max-width:720px;margin:0 auto}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.back{border:1px solid rgba(214,180,106,.22);border-radius:16px;padding:11px 14px;color:#f4efe2;text-decoration:none;background:rgba(255,255,255,.04);font-weight:900}.lang{border:1px solid rgba(214,180,106,.22);border-radius:16px;padding:11px 14px;background:linear-gradient(180deg,#d6b46a,#9b7c38);color:#080c0a;font-weight:1000}
-    .hero,.panel{border:1px solid rgba(214,180,106,.18);border-radius:24px;background:linear-gradient(145deg,rgba(7,10,9,.88),rgba(10,28,18,.62));box-shadow:0 22px 60px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.045);padding:16px;margin-bottom:12px;overflow:hidden}
-    .brand{display:flex;align-items:center;gap:12px}.logo{width:58px;height:58px;border-radius:18px;background:#f4efe2;color:#090d0b;display:grid;place-items:center;font-size:36px;box-shadow:0 12px 26px rgba(0,0,0,.28)}h1{margin:0;color:#f4efe2;font-size:28px;line-height:1.2}.muted{color:#aeb9b2;font-size:13px;line-height:1.8;margin:6px 0 0}
-    .status{display:grid;gap:8px;margin-top:12px}.statusRow{border:1px solid rgba(214,180,106,.14);background:rgba(0,0,0,.22);border-radius:16px;padding:10px 12px;color:#d9e1dc;font-size:14px}.gold{color:#d6b46a;font-weight:1000}
-    .boardBox{padding:10px}.board{width:min(94vw,560px);height:min(94vw,560px);margin:0 auto;border:2px solid rgba(214,180,106,.30);border-radius:18px;overflow:hidden;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);box-shadow:0 24px 70px rgba(0,0,0,.45);direction:ltr}.sq{display:grid;place-items:center;font-size:clamp(28px,9vw,52px);user-select:none;position:relative}.light{background:#d8c7a1}.dark{background:#38543f}.sq.selected{outline:4px solid rgba(214,180,106,.82);outline-offset:-4px}.piece{filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));line-height:1}.whitePiece{color:#fff9e8}.blackPiece{color:#111412}
-    .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{border:none;border-radius:16px;padding:13px 12px;font-weight:1000;font-size:14px}.primary{background:linear-gradient(180deg,#d6b46a,#9b7c38);color:#080c0a}.secondary{background:rgba(255,255,255,.05);color:#f4efe2;border:1px solid rgba(214,180,106,.18)}.danger{background:linear-gradient(180deg,#7f1d1d,#451111);color:white}.msg{min-height:24px;color:#d9e1dc;line-height:1.8;font-size:14px;margin-top:10px}
-    .chat{display:grid;gap:8px}.chatLog{height:120px;overflow:auto;border:1px solid rgba(214,180,106,.14);border-radius:16px;background:rgba(0,0,0,.24);padding:10px;color:#d9e1dc;font-size:13px;line-height:1.7}.chatLine{margin-bottom:6px}.chatInput{display:grid;grid-template-columns:1fr auto;gap:8px}input{border:1px solid rgba(214,180,106,.18);border-radius:14px;background:rgba(255,255,255,.04);color:#f4efe2;padding:12px;font-size:14px;outline:none}
-    @media(max-width:480px){h1{font-size:24px}.hero,.panel{border-radius:20px;padding:13px}.logo{width:50px;height:50px;font-size:30px}.controls{grid-template-columns:1fr}.board{border-radius:14px}.boardBox{padding:6px}}
-  </style>
-</head>
-<body>
-  <main class="wrap">
-    <div class="top"><a class="back" href="/" id="homeBtn"></a><button class="lang" id="langBtn" type="button">EN</button></div>
-    <section class="hero">
-      <div class="brand"><div class="logo">&#9822;</div><div><h1 id="title"></h1><p class="muted" id="sub"></p></div></div>
-      <div class="status">
-        <div class="statusRow"><span id="connectionLabel"></span>: <span class="gold" id="conn">Connecting...</span></div>
-        <div class="statusRow"><span id="roomLabel"></span>: <span class="gold" id="roomStatus">-</span></div>
-        <div class="statusRow"><span id="turnLabel"></span>: <span class="gold" id="turnStatus">-</span></div>
-      </div>
-    </section>
-    <section class="panel boardBox">
-      <div class="board" id="board"></div>
-      <div class="controls"><button class="primary" id="joinBtn"></button><button class="secondary" id="newBtn"></button><button class="danger" id="leaveBtn"></button><button class="secondary" id="flipBtn"></button></div>
-      <div class="msg" id="message"></div>
-    </section>
-    <section class="panel chat"><div class="chatLog" id="chatLog"></div><div class="chatInput"><input id="chatInput" maxlength="120" /><button class="primary" id="sendBtn"></button></div></section>
-  </main>
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  const fa={home:"\u0635\u0641\u062d\u0647 \u0627\u0635\u0644\u06cc",title:"\u0634\u0637\u0631\u0646\u062c \u0622\u0646\u0644\u0627\u06cc\u0646",sub:"\u0646\u0633\u062e\u0647 \u0627\u0648\u0644\u06cc\u0647 \u0634\u0637\u0631\u0646\u062c \u062f\u0648 \u0646\u0641\u0631\u0647 \u0628\u0627 \u0627\u062a\u0635\u0627\u0644 \u0622\u0646\u0644\u0627\u06cc\u0646 \u0648 \u0637\u0631\u0627\u062d\u06cc \u0647\u0645\u0627\u0647\u0646\u06af \u0628\u0627 Poker Royale",connection:"\u0627\u062a\u0635\u0627\u0644",room:"\u0648\u0636\u0639\u06cc\u062a \u0627\u062a\u0627\u0642",turn:"\u0646\u0648\u0628\u062a",join:"\u0648\u0631\u0648\u062f \u0628\u0647 \u0645\u06cc\u0632 \u0634\u0637\u0631\u0646\u062c",newGame:"\u0634\u0631\u0648\u0639 \u0628\u0627\u0632\u06cc \u062c\u062f\u06cc\u062f",leave:"\u062e\u0631\u0648\u062c \u0627\u0632 \u0645\u06cc\u0632",flip:"\u0686\u0631\u062e\u0634 \u0635\u0641\u062d\u0647",send:"\u0627\u0631\u0633\u0627\u0644",chat:"\u067e\u06cc\u0627\u0645 \u0628\u0646\u0648\u06cc\u0633...",waiting:"\u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631 \u0628\u0627\u0632\u06cc\u06a9\u0646 \u062f\u0648\u0645",ready:"\u0622\u0645\u0627\u062f\u0647 \u0628\u0627\u0632\u06cc",white:"\u0633\u0641\u06cc\u062f",black:"\u0633\u06cc\u0627\u0647",yourTurn:"\u0646\u0648\u0628\u062a \u0634\u0645\u0627\u0633\u062a",opTurn:"\u0646\u0648\u0628\u062a \u062d\u0631\u06cc\u0641",spectator:"\u062a\u0645\u0627\u0634\u0627\u0686\u06cc",connected:"\u0645\u062a\u0635\u0644",disconnected:"\u0642\u0637\u0639",ended:"\u0628\u0627\u0632\u06cc \u062a\u0645\u0627\u0645 \u0634\u062f"};
-  const en={home:"Home",title:"Online Chess",sub:"First online two-player chess version with Poker Royale premium design",connection:"Connection",room:"Room Status",turn:"Turn",join:"Join Chess Table",newGame:"New Game",leave:"Leave Table",flip:"Flip Board",send:"Send",chat:"Type message...",waiting:"Waiting for second player",ready:"Ready to play",white:"White",black:"Black",yourTurn:"Your turn",opTurn:"Opponent turn",spectator:"Spectator",connected:"Connected",disconnected:"Disconnected",ended:"Game ended"};
-  let currentLang=localStorage.getItem("pokerLang")||"fa",socket=null,state=null,myColor=null,selected=null,flipped=false;
-  const $=id=>document.getElementById(id),pieces={p:"\u265f",r:"\u265c",n:"\u265e",b:"\u265d",q:"\u265b",k:"\u265a",P:"\u2659",R:"\u2656",N:"\u2658",B:"\u2657",Q:"\u2655",K:"\u2654"},files=["a","b","c","d","e","f","g","h"];
-  function t(){return currentLang==="fa"?fa:en}function fmtColor(c){return c==="w"?t().white:c==="b"?t().black:t().spectator}
-  function applyLang(){const x=t();document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==="fa"?"rtl":"ltr";$("homeBtn").textContent=x.home;$("langBtn").textContent=currentLang==="fa"?"EN":"FA";$("title").textContent=x.title;$("sub").textContent=x.sub;$("connectionLabel").textContent=x.connection;$("roomLabel").textContent=x.room;$("turnLabel").textContent=x.turn;$("joinBtn").textContent=x.join;$("newBtn").textContent=x.newGame;$("leaveBtn").textContent=x.leave;$("flipBtn").textContent=x.flip;$("sendBtn").textContent=x.send;$("chatInput").placeholder=x.chat;updateLabels()}
-  function sqName(r,c){return files[c]+(8-r)}function renderBoard(){const b=$("board");b.innerHTML="";const rows=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];const cols=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];rows.forEach(r=>cols.forEach(c=>{const sq=sqName(r,c),d=document.createElement("div");d.className="sq "+(((r+c)%2===0)?"light":"dark");if(selected===sq)d.classList.add("selected");const p=state&&state.board?state.board[sq]:null;if(p){const s=document.createElement("span");s.className="piece "+(p===p.toUpperCase()?"whitePiece":"blackPiece");s.textContent=pieces[p]||p;d.appendChild(s)}d.onclick=()=>clickSq(sq);b.appendChild(d)}))}
-  function clickSq(sq){if(!state||!myColor||state.status!=="playing")return;const p=state.board[sq],mine=p&&((myColor==="w"&&p===p.toUpperCase())||(myColor==="b"&&p===p.toLowerCase()));if(!selected){if(mine&&state.turn===myColor){selected=sq;renderBoard()}return}if(selected===sq){selected=null;renderBoard();return}socket.emit("chessMove",{from:selected,to:sq});selected=null}
-  function updateLabels(){if(!state){$("roomStatus").textContent="-";$("turnStatus").textContent="-";return}const x=t();$("roomStatus").textContent=state.status==="waiting"?x.waiting:state.status==="playing"?x.ready:x.ended;if(!myColor)$("turnStatus").textContent=x.spectator;else if(state.status!=="playing")$("turnStatus").textContent=fmtColor(myColor);else $("turnStatus").textContent=state.turn===myColor?x.yourTurn:x.opTurn}
-  function addChat(m){const d=document.createElement("div");d.className="chatLine";d.textContent=(m.name?m.name+": ":"")+m.text;$("chatLog").appendChild(d);$("chatLog").scrollTop=$("chatLog").scrollHeight}
-  function connect(){socket=io({transports:["websocket","polling"]});socket.on("connect",()=>{$("conn").textContent=t().connected;socket.emit("joinChessLobby")});socket.on("disconnect",()=>{$("conn").textContent=t().disconnected});socket.on("chessState",s=>{state=s;myColor=s.myColor||myColor;renderBoard();updateLabels()});socket.on("chessMessage",m=>{$("message").textContent=m});socket.on("chessChat",m=>addChat(m))}
-  $("langBtn").onclick=()=>{currentLang=currentLang==="fa"?"en":"fa";localStorage.setItem("pokerLang",currentLang);applyLang()};$("joinBtn").onclick=()=>socket&&socket.emit("joinChessGame");$("newBtn").onclick=()=>socket&&socket.emit("newChessGame");$("leaveBtn").onclick=()=>{socket&&socket.emit("leaveChessGame");myColor=null};$("flipBtn").onclick=()=>{flipped=!flipped;renderBoard()};$("sendBtn").onclick=()=>{const v=$("chatInput").value.trim();if(v&&socket){socket.emit("chessChat",v);$("chatInput").value=""}};$("chatInput").addEventListener("keydown",e=>{if(e.key==="Enter")$("sendBtn").click()});applyLang();renderBoard();connect();
-</script>
-</body>
-</html>`);
-});
-
 app.get("/games/mench", (req, res) => res.redirect("/"));
 app.get("/games/backgammon", (req, res) => res.redirect("/"));
 app.get("/games/hokm", (req, res) => res.redirect("/"));
@@ -1661,146 +1737,7 @@ Paste this code exactly BEFORE </body> in server.js
 </body></html>`);
 });
 
-
-/* ================================
-   Chess MVP - Poker Royale
-   ================================ */
-const chessRoom = {
-  players: [],
-  spectators: [],
-  board: createInitialChessBoard(),
-  turn: "w",
-  status: "waiting",
-  winner: null,
-  chatMessages: []
-};
-function createInitialChessBoard() {
-  return {
-    a8:"r", b8:"n", c8:"b", d8:"q", e8:"k", f8:"b", g8:"n", h8:"r",
-    a7:"p", b7:"p", c7:"p", d7:"p", e7:"p", f7:"p", g7:"p", h7:"p",
-    a2:"P", b2:"P", c2:"P", d2:"P", e2:"P", f2:"P", g2:"P", h2:"P",
-    a1:"R", b1:"N", c1:"B", d1:"Q", e1:"K", f1:"B", g1:"N", h1:"R"
-  };
-}
-function chessFiles(){ return ["a","b","c","d","e","f","g","h"]; }
-function chessCoord(sq){ return { c: chessFiles().indexOf(sq[0]), r: Number(sq[1]) }; }
-function chessSq(c,r){ return chessFiles()[c] + String(r); }
-function isWhitePiece(p){ return p && p === p.toUpperCase(); }
-function pieceColor(p){ return isWhitePiece(p) ? "w" : "b"; }
-function clearPath(board, from, to) {
-  const a = chessCoord(from), b = chessCoord(to);
-  const dc = Math.sign(b.c - a.c), dr = Math.sign(b.r - a.r);
-  let c = a.c + dc, r = a.r + dr;
-  while (c !== b.c || r !== b.r) {
-    if (board[chessSq(c,r)]) return false;
-    c += dc; r += dr;
-  }
-  return true;
-}
-function isLegalChessMove(board, turn, from, to) {
-  if (!from || !to || from === to) return false;
-  const p = board[from];
-  if (!p || pieceColor(p) !== turn) return false;
-  const target = board[to];
-  if (target && pieceColor(target) === turn) return false;
-  const a = chessCoord(from), b = chessCoord(to);
-  const dx = b.c - a.c, dy = b.r - a.r, adx = Math.abs(dx), ady = Math.abs(dy);
-  const lower = p.toLowerCase();
-  if (lower === "p") {
-    const dir = turn === "w" ? 1 : -1;
-    const startRank = turn === "w" ? 2 : 7;
-    if (dx === 0 && dy === dir && !target) return true;
-    if (dx === 0 && dy === 2 * dir && a.r === startRank && !target && !board[chessSq(a.c, a.r + dir)]) return true;
-    if (adx === 1 && dy === dir && target && pieceColor(target) !== turn) return true;
-    return false;
-  }
-  if (lower === "n") return (adx === 1 && ady === 2) || (adx === 2 && ady === 1);
-  if (lower === "b") return adx === ady && clearPath(board, from, to);
-  if (lower === "r") return (dx === 0 || dy === 0) && clearPath(board, from, to);
-  if (lower === "q") return ((adx === ady) || dx === 0 || dy === 0) && clearPath(board, from, to);
-  if (lower === "k") return adx <= 1 && ady <= 1;
-  return false;
-}
-function publicChessState(socketId) {
-  const player = chessRoom.players.find((p) => p.socketId === socketId);
-  return { board: chessRoom.board, turn: chessRoom.turn, status: chessRoom.status, players: chessRoom.players.map((p) => ({ name: p.name, color: p.color })), myColor: player ? player.color : null, winner: chessRoom.winner };
-}
-function emitChessState() {
-  [...chessRoom.players, ...chessRoom.spectators].forEach((p) => io.to(p.socketId).emit("chessState", publicChessState(p.socketId)));
-}
-async function getSocketDisplayName(socket) {
-  const userId = socket.request.session && socket.request.session.userId;
-  if (userId) {
-    try { const user = await getUserById(userId); if (user && user.username) return user.username; } catch (e) {}
-  }
-  return "Guest-" + String(socket.id).slice(0, 4);
-}
-function resetChessGame() {
-  chessRoom.board = createInitialChessBoard();
-  chessRoom.turn = "w";
-  chessRoom.winner = null;
-  chessRoom.status = chessRoom.players.length >= 2 ? "playing" : "waiting";
-}
-function removeChessSocket(socketId) {
-  chessRoom.players = chessRoom.players.filter((p) => p.socketId !== socketId);
-  chessRoom.spectators = chessRoom.spectators.filter((p) => p.socketId !== socketId);
-  if (chessRoom.players.length < 2) { chessRoom.status = "waiting"; chessRoom.winner = null; }
-}
-
 io.on("connection", (socket) => {
-
-  socket.on("joinChessLobby", async () => {
-    const name = await getSocketDisplayName(socket);
-    if (!chessRoom.players.find((p) => p.socketId === socket.id) && !chessRoom.spectators.find((p) => p.socketId === socket.id)) chessRoom.spectators.push({ socketId: socket.id, name });
-    socket.join("chess-room");
-    socket.emit("chessState", publicChessState(socket.id));
-  });
-  socket.on("joinChessGame", async () => {
-    const name = await getSocketDisplayName(socket);
-    removeChessSocket(socket.id);
-    if (chessRoom.players.length < 2) {
-      const color = chessRoom.players.length === 0 ? "w" : "b";
-      chessRoom.players.push({ socketId: socket.id, name, color });
-      socket.join("chess-room");
-      if (chessRoom.players.length >= 2) resetChessGame(); else chessRoom.status = "waiting";
-      io.to("chess-room").emit("chessMessage", name + " joined chess.");
-      emitChessState();
-    } else {
-      chessRoom.spectators.push({ socketId: socket.id, name });
-      socket.join("chess-room");
-      socket.emit("chessMessage", "Chess table is full. You are watching.");
-      socket.emit("chessState", publicChessState(socket.id));
-    }
-  });
-  socket.on("leaveChessGame", () => { removeChessSocket(socket.id); emitChessState(); });
-  socket.on("newChessGame", () => {
-    const player = chessRoom.players.find((p) => p.socketId === socket.id);
-    if (!player) return socket.emit("chessMessage", "Join the chess table first.");
-    resetChessGame(); emitChessState();
-  });
-  socket.on("chessMove", ({ from, to }) => {
-    const player = chessRoom.players.find((p) => p.socketId === socket.id);
-    if (!player || chessRoom.status !== "playing") return;
-    if (player.color !== chessRoom.turn) return socket.emit("chessMessage", "Not your turn.");
-    if (!isLegalChessMove(chessRoom.board, chessRoom.turn, from, to)) return socket.emit("chessMessage", "Illegal move.");
-    const moving = chessRoom.board[from], captured = chessRoom.board[to];
-    delete chessRoom.board[from]; chessRoom.board[to] = moving;
-    if (captured && captured.toLowerCase() === "k") {
-      chessRoom.status = "ended"; chessRoom.winner = player.color;
-      io.to("chess-room").emit("chessMessage", player.name + " wins.");
-    } else chessRoom.turn = chessRoom.turn === "w" ? "b" : "w";
-    emitChessState();
-  });
-  socket.on("chessChat", async (text) => {
-    const clean = sanitizeChatMessage(text);
-    if (!clean) return;
-    const player = chessRoom.players.find((p) => p.socketId === socket.id) || chessRoom.spectators.find((p) => p.socketId === socket.id);
-    const name = player ? player.name : await getSocketDisplayName(socket);
-    const msg = { name, text: clean };
-    chessRoom.chatMessages.push(msg);
-    if (chessRoom.chatMessages.length > 50) chessRoom.chatMessages = chessRoom.chatMessages.slice(-50);
-    io.to("chess-room").emit("chessChat", msg);
-  });
   console.log("Connected:", socket.id);
   io.emit("onlineCount", io.engine.clientsCount);
   socket.emit("roomsUpdate", getPublicRooms());
@@ -1872,8 +1809,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    removeChessSocket(socket.id);
-    emitChessState();
     console.log("Disconnected:", socket.id);
     const location = findPlayerLocation(socket.id);
     if (!location) { io.emit("onlineCount", io.engine.clientsCount); return; }
