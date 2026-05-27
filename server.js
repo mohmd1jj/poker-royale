@@ -827,6 +827,7 @@ app.get("/", (req, res) => {
       --muted: #b8c7bd;
       --text: #fff7c2;
       --line: rgba(250, 204, 21, 0.22);
+      --danger: #ef4444;
     }
     body {
       margin: 0;
@@ -885,6 +886,62 @@ app.get("/", (req, res) => {
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
       flex: 0 0 auto;
     }
+    .account-box {
+      position: relative;
+      z-index: 2;
+      margin-top: 14px;
+      border: 1px solid rgba(250,204,21,.18);
+      border-radius: 22px;
+      padding: 12px;
+      background: rgba(0,0,0,.34);
+      display: grid;
+      gap: 10px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .account-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .account-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .account-avatar {
+      width: 38px; height: 38px; border-radius: 14px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, rgba(250,204,21,.95), rgba(202,138,4,.85));
+      color: #111827; font-weight: 1000; direction: ltr;
+    }
+    .account-name { color: #fff7ad; font-weight: 1000; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+    .coin-pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      border: 1px solid rgba(250,204,21,.28);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: rgba(250,204,21,.10);
+      color: #fff7ad;
+      font-weight: 1000;
+      font-size: 13px;
+      direction: ltr;
+    }
+    .coin-dot { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #fff7ad, #facc15 52%, #b45309); box-shadow: 0 0 13px rgba(250,204,21,.55); }
+    .login-mini { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; }
+    .login-mini input {
+      min-width: 0;
+      border: 1px solid rgba(250,204,21,.22);
+      background: rgba(0,0,0,.38);
+      color: white;
+      border-radius: 13px;
+      padding: 11px 12px;
+      outline: 0;
+      font-size: 13px;
+    }
+    .mini-btn {
+      border: 0;
+      border-radius: 13px;
+      padding: 11px 13px;
+      font-weight: 1000;
+      color: #fff;
+      background: linear-gradient(135deg, #166534, #22c55e);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .mini-btn.gold { color: #111827; background: linear-gradient(135deg, #fff7ad, #facc15, #ca8a04); }
+    .mini-btn.ghost { background: rgba(255,255,255,.07); color: #dbe8df; border: 1px solid rgba(255,255,255,.10); }
     .headline { position: relative; z-index: 2; margin-top: 22px; }
     .headline h2 { margin: 0; color: var(--gold); font-size: clamp(25px, 6vw, 44px); line-height: 1.35; }
     .headline p { margin: 10px 0 0; color: #d7e4dc; font-size: 15px; line-height: 1.9; max-width: 760px; }
@@ -901,8 +958,8 @@ app.get("/", (req, res) => {
     .games { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .game-card {
       position: relative;
-      min-height: 188px;
-      border-radius: 30px;
+      min-height: 206px;
+      border-radius: 32px;
       border: 1px solid rgba(250,204,21,.20);
       padding: 18px;
       background:
@@ -921,17 +978,33 @@ app.get("/", (req, res) => {
       width: 155px; height: 155px; border-radius: 50%; border: 28px solid rgba(255,255,255,.035);
     }
     .game-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; position: relative; z-index: 1; }
-    .game-icon {
-      width: 78px; height: 78px; border-radius: 26px;
+    .logo-wrap {
+      width: 86px; height: 86px; border-radius: 28px;
       display: grid; place-items: center;
       background: linear-gradient(145deg, rgba(255,255,255,.13), rgba(255,255,255,.04));
       border: 1px solid rgba(255,255,255,.12);
-      color: var(--accent);
-      font-size: 25px;
-      font-weight: 1000;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.09);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 14px 32px rgba(0,0,0,.26);
       direction: ltr;
+      overflow: hidden;
+      flex: 0 0 auto;
     }
+    .game-logo { width: 66px; height: 66px; position: relative; display: grid; place-items: center; color: var(--accent); font-weight: 1000; }
+    .logo-poker { font-size: 34px; }
+    .logo-poker::before { content: "A"; transform: rotate(-8deg); }
+    .logo-poker::after { content: "\\2660"; position: absolute; bottom: 7px; right: 10px; font-size: 20px; color: #fff7ad; }
+    .logo-chess { font-size: 42px; }
+    .logo-chess::before { content: "\\265E"; }
+    .logo-mench { grid-template-columns: repeat(2, 20px); grid-template-rows: repeat(2,20px); gap: 5px; }
+    .logo-mench span { width: 20px; height: 20px; border-radius: 50%; background: currentColor; box-shadow: 0 0 16px color-mix(in srgb, currentColor 55%, transparent); }
+    .logo-backgammon::before, .logo-backgammon::after { content:""; position:absolute; width: 18px; height: 54px; background: currentColor; clip-path: polygon(50% 0,100% 100%,0 100%); opacity:.95; }
+    .logo-backgammon::before { left: 10px; top: 6px; }
+    .logo-backgammon::after { right: 10px; bottom: 6px; transform: rotate(180deg); color:#fff7ad; background:#fff7ad; }
+    .logo-hokm { font-size: 35px; }
+    .logo-hokm::before { content:"\\265B"; }
+    .logo-hokm::after { content:"H"; position:absolute; right: 7px; bottom: 2px; font-size: 18px; color:#fff7ad; }
+    .logo-4barg { font-size: 33px; }
+    .logo-4barg::before { content:"4"; }
+    .logo-4barg::after { content:"\\2663"; position:absolute; right: 5px; bottom: 2px; font-size: 24px; color:#fff7ad; }
     .badge {
       border: 1px solid rgba(250,204,21,.28);
       background: rgba(0,0,0,.34);
@@ -943,7 +1016,7 @@ app.get("/", (req, res) => {
       white-space: nowrap;
     }
     .badge.live { background: rgba(34,197,94,.16); border-color: rgba(34,197,94,.36); color: #86efac; }
-    .game-name { position: relative; z-index: 1; color: #fff7ad; font-size: 28px; font-weight: 1000; margin-bottom: 7px; }
+    .game-name { position: relative; z-index: 1; color: #fff7ad; font-size: 30px; font-weight: 1000; margin-bottom: 7px; }
     .game-desc { position: relative; z-index: 1; color: #cbd5e1; font-size: 14px; line-height: 1.7; }
     .bottom-nav {
       position: sticky; bottom: calc(10px + env(safe-area-inset-bottom));
@@ -967,13 +1040,53 @@ app.get("/", (req, res) => {
     .toast.show { opacity: 1; transform: translateY(0); }
     @media (max-width: 720px) {
       .hero { border-radius: 26px; padding: 16px; }
-      .mark { width: 60px; height: 60px; border-radius: 20px; font-size: 22px; }
+      .topbar { align-items: flex-start; }
+      .mark { width: 58px; height: 58px; border-radius: 20px; font-size: 22px; }
       .subtitle { font-size: 13px; }
+      .login-mini { grid-template-columns: 1fr; }
       .games { grid-template-columns: 1fr; }
-      .game-card { min-height: 165px; border-radius: 27px; }
-      .game-icon { width: 70px; height: 70px; border-radius: 23px; font-size: 22px; }
-      .game-name { font-size: 25px; }
+      .game-card { min-height: 182px; border-radius: 27px; }
+      .logo-wrap { width: 76px; height: 76px; border-radius: 24px; }
+      .game-logo { width: 58px; height: 58px; }
+      .game-name { font-size: 26px; }
     }
+
+/* ================================
+   POKER CLEAN WINDOW PATCH
+   Hide account, stats, chat, online table panels from /games/poker
+   ================================ */
+body.poker-clean-mode .auth-panel,
+body.poker-clean-mode .top-status,
+body.poker-clean-mode .main-layout > aside.panel,
+body.poker-clean-mode .chat-panel,
+body.poker-clean-mode .log {
+  display: none !important;
+}
+body.poker-clean-mode .app { max-width: 980px !important; }
+body.poker-clean-mode .main-layout { display: block !important; }
+body.poker-clean-mode main { width: 100% !important; }
+body.poker-clean-mode .top-row { margin-bottom: 14px !important; }
+body.poker-clean-mode .poker-table { margin-top: 8px !important; min-height: 600px !important; }
+body.poker-clean-mode .turn-status { top: 330px !important; }
+body.poker-clean-mode .actions { box-shadow: 0 -18px 55px rgba(0,0,0,.50) !important; }
+body.poker-clean-mode::after {
+  content: "POKER TABLE";
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(250,204,21,.96), rgba(202,138,4,.94));
+  color: #111827;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  box-shadow: 0 8px 24px rgba(250,204,21,.28);
+  pointer-events: none;
+}
+@media(max-width:850px){ body.poker-clean-mode .poker-table{ min-height: 560px !important; } }
   </style>
 </head>
 <body>
@@ -989,9 +1102,33 @@ app.get("/", (req, res) => {
         </div>
         <button class="lang" type="button">FA</button>
       </div>
+
+      <section class="account-box" aria-label="User account">
+        <div class="account-row">
+          <div class="account-title">
+            <div class="account-avatar" id="accountAvatar">?</div>
+            <div>
+              <div class="account-name" id="accountName">&#1705;&#1575;&#1585;&#1576;&#1585; &#1605;&#1607;&#1605;&#1575;&#1606;</div>
+              <div style="color:#b8c7bd;font-size:12px;margin-top:4px;">&#1605;&#1608;&#1580;&#1608;&#1583;&#1740; &#1587;&#1705;&#1607; &#1583;&#1585; &#1607;&#1605;&#1607; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575; &#1740;&#1705;&#1587;&#1575;&#1606; &#1575;&#1587;&#1578;</div>
+            </div>
+          </div>
+          <div class="coin-pill"><span class="coin-dot"></span><span id="coinAmount">--</span></div>
+        </div>
+        <div class="login-mini" id="loginMini">
+          <input id="homeUsername" placeholder="Username" autocomplete="username" />
+          <input id="homePassword" placeholder="Password" type="password" autocomplete="current-password" />
+          <button class="mini-btn" id="homeLogin" type="button">&#1608;&#1585;&#1608;&#1583;</button>
+          <button class="mini-btn gold" id="homeRegister" type="button">&#1579;&#1576;&#1578;&#8204;&#1606;&#1575;&#1605;</button>
+        </div>
+        <div class="account-row" id="loggedActions" style="display:none;">
+          <button class="mini-btn gold" id="homeBonus" type="button">&#1580;&#1575;&#1740;&#1586;&#1607; &#1585;&#1608;&#1586;&#1575;&#1606;&#1607;</button>
+          <button class="mini-btn ghost" id="homeLogout" type="button">&#1582;&#1585;&#1608;&#1580;</button>
+        </div>
+      </section>
+
       <div class="headline">
         <h2>&#1576;&#1575;&#1586;&#1740; &#1605;&#1608;&#1585;&#1583; &#1593;&#1604;&#1575;&#1602;&#1607;&#8204;&#1575;&#1578; &#1585;&#1575; &#1575;&#1606;&#1578;&#1582;&#1575;&#1576; &#1705;&#1606;</h2>
-        <p>&#1575;&#1586; &#1575;&#1740;&#1606; &#1589;&#1601;&#1581;&#1607; &#1608;&#1575;&#1585;&#1583; &#1662;&#1608;&#1705;&#1585; &#1588;&#1608; &#1740;&#1575; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;&#1740; &#1576;&#1593;&#1583;&#1740; &#1585;&#1575; &#1583;&#1606;&#1576;&#1575;&#1604; &#1705;&#1606;. &#1607;&#1585; &#1576;&#1575;&#1586;&#1740; &#1576;&#1607;&#8204;&#1589;&#1608;&#1585;&#1578; &#1580;&#1583;&#1575;&#1711;&#1575;&#1606;&#1607; &#1578;&#1705;&#1605;&#1740;&#1604; &#1605;&#1740;&#8204;&#1588;&#1608;&#1583;.</p>
+        <p>&#1575;&#1586; &#1575;&#1740;&#1606; &#1589;&#1601;&#1581;&#1607; &#1608;&#1575;&#1585;&#1583; &#1662;&#1608;&#1705;&#1585; &#1588;&#1608; &#1740;&#1575; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;&#1740; &#1576;&#1593;&#1583;&#1740; &#1585;&#1575; &#1583;&#1606;&#1576;&#1575;&#1604; &#1705;&#1606;. &#1605;&#1608;&#1580;&#1608;&#1583;&#1740; &#1587;&#1705;&#1607;&#8204;&#1575;&#1578; &#1576;&#1740;&#1606; &#1607;&#1605;&#1607; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575; &#1605;&#1588;&#1578;&#1585;&#1705; &#1575;&#1587;&#1578;.</p>
       </div>
     </section>
 
@@ -1002,32 +1139,32 @@ app.get("/", (req, res) => {
 
     <section class="games" aria-label="Games">
       <a class="game-card" href="/games/poker" style="--accent:#facc15;--glow:rgba(250,204,21,.20)">
-        <div class="game-top"><div class="game-icon">PK</div><div class="badge live">&#1601;&#1593;&#1575;&#1604;</div></div>
-        <div><div class="game-name">&#1662;&#1608;&#1705;&#1585;</div><div class="game-desc">Texas Hold&#8217;em &#1576;&#1575; &#1581;&#1587;&#1575;&#1576; &#1705;&#1575;&#1585;&#1576;&#1585;&#1740;&#1548; &#1670;&#1740;&#1662;&#1548; &#1570;&#1605;&#1575;&#1585;&#1548; &#1670;&#1578; &#1608; &#1605;&#1740;&#1586; &#1570;&#1606;&#1604;&#1575;&#1740;&#1606;</div></div>
+        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-poker"></div></div><div class="badge live">&#1601;&#1593;&#1575;&#1604;</div></div>
+        <div><div class="game-name">&#1662;&#1608;&#1705;&#1585;</div><div class="game-desc">Texas Hold&#8217;em &#1576;&#1575; &#1605;&#1740;&#1586; &#1570;&#1606;&#1604;&#1575;&#1740;&#1606; &#1608; &#1605;&#1608;&#1580;&#1608;&#1583;&#1740; &#1587;&#1705;&#1607; &#1605;&#1588;&#1578;&#1585;&#1705;</div></div>
       </a>
 
       <article class="game-card soon" style="--accent:#fff7ad;--glow:rgba(255,247,173,.16)" data-game="&#1588;&#1591;&#1585;&#1606;&#1580;">
-        <div class="game-top"><div class="game-icon">CH</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-chess"></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
         <div><div class="game-name">&#1588;&#1591;&#1585;&#1606;&#1580;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1575;&#1587;&#1578;&#1585;&#1575;&#1578;&#1688;&#1740;&#1705; &#1583;&#1608;&#1606;&#1601;&#1585;&#1607; &#1576;&#1575; &#1575;&#1578;&#1575;&#1602; &#1570;&#1606;&#1604;&#1575;&#1740;&#1606;</div></div>
       </article>
 
       <article class="game-card soon" style="--accent:#22c55e;--glow:rgba(34,197,94,.18)" data-game="&#1605;&#1606;&#1670;">
-        <div class="game-top"><div class="game-icon">MN</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-mench"><span></span><span></span><span></span><span></span></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
         <div><div class="game-name">&#1605;&#1606;&#1670;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1583;&#1608;&#1585;&#1607;&#1605;&#1740;&#1548; &#1587;&#1575;&#1583;&#1607; &#1608; &#1587;&#1585;&#1711;&#1585;&#1605;&#8204;&#1705;&#1606;&#1606;&#1583;&#1607;</div></div>
       </article>
 
       <article class="game-card soon" style="--accent:#fb923c;--glow:rgba(251,146,60,.18)" data-game="&#1578;&#1582;&#1578;&#1607; &#1606;&#1585;&#1583;">
-        <div class="game-top"><div class="game-icon">BG</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-backgammon"></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
         <div><div class="game-name">&#1578;&#1582;&#1578;&#1607; &#1606;&#1585;&#1583;</div><div class="game-desc">&#1705;&#1604;&#1575;&#1587;&#1740;&#1705;&#1548; &#1587;&#1585;&#1740;&#1593;&#1548; &#1585;&#1602;&#1575;&#1576;&#1578;&#1740; &#1608; &#1605;&#1606;&#1575;&#1587;&#1576; &#1605;&#1608;&#1576;&#1575;&#1740;&#1604;</div></div>
       </article>
 
       <article class="game-card soon" style="--accent:#ef4444;--glow:rgba(239,68,68,.18)" data-game="&#1581;&#1705;&#1605;">
-        <div class="game-top"><div class="game-icon">HK</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-hokm"></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
         <div><div class="game-name">&#1581;&#1705;&#1605;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1705;&#1575;&#1585;&#1578;&#1740; &#1578;&#1740;&#1605;&#1740; &#1608; &#1605;&#1581;&#1576;&#1608;&#1576; &#1575;&#1740;&#1585;&#1575;&#1606;&#1740;</div></div>
       </article>
 
       <article class="game-card soon" style="--accent:#60a5fa;--glow:rgba(96,165,250,.18)" data-game="&#1670;&#1607;&#1575;&#1585; &#1576;&#1585;&#1711;">
-        <div class="game-top"><div class="game-icon">4B</div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
+        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-4barg"></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
         <div><div class="game-name">&#1670;&#1607;&#1575;&#1585; &#1576;&#1585;&#1711;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1705;&#1575;&#1585;&#1578;&#1740; &#1587;&#1585;&#1740;&#1593;&#1548; &#1587;&#1575;&#1583;&#1607; &#1608; &#1607;&#1740;&#1580;&#1575;&#1606;&#1740;</div></div>
       </article>
     </section>
@@ -1042,15 +1179,93 @@ app.get("/", (req, res) => {
   <script>
     var toast = document.getElementById('toast');
     var timer = null;
+    var currentUser = null;
+    var accountName = document.getElementById('accountName');
+    var accountAvatar = document.getElementById('accountAvatar');
+    var coinAmount = document.getElementById('coinAmount');
+    var loginMini = document.getElementById('loginMini');
+    var loggedActions = document.getElementById('loggedActions');
+
     function showToast(message) {
-      toast.textContent = message + ' - ' + 'Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯';
+      toast.textContent = message;
       toast.classList.add('show');
       clearTimeout(timer);
-      timer = setTimeout(function(){ toast.classList.remove('show'); }, 2200);
+      timer = setTimeout(function(){ toast.classList.remove('show'); }, 2400);
     }
+    async function api(path, body) {
+      var response = await fetch(path, {
+        method: body ? 'POST' : 'GET',
+        headers: body ? { 'Content-Type': 'application/json' } : {},
+        body: body ? JSON.stringify(body) : undefined
+      });
+      var data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+    function updateAccount() {
+      if (currentUser) {
+        accountName.textContent = currentUser.username;
+        accountAvatar.textContent = currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 'U';
+        coinAmount.textContent = Number(currentUser.chips || 0).toLocaleString('en-US');
+        loginMini.style.display = 'none';
+        loggedActions.style.display = 'flex';
+      } else {
+        accountName.innerHTML = '&#1705;&#1575;&#1585;&#1576;&#1585; &#1605;&#1607;&#1605;&#1575;&#1606;';
+        accountAvatar.textContent = '?';
+        coinAmount.textContent = '--';
+        loginMini.style.display = 'grid';
+        loggedActions.style.display = 'none';
+      }
+    }
+    async function loadMe() {
+      try {
+        var data = await api('/api/me');
+        currentUser = data.user;
+        updateAccount();
+      } catch (e) { updateAccount(); }
+    }
+    document.getElementById('homeLogin').onclick = async function() {
+      try {
+        var data = await api('/api/login', {
+          username: document.getElementById('homeUsername').value,
+          password: document.getElementById('homePassword').value
+        });
+        currentUser = data.user;
+        updateAccount();
+        showToast('&#1608;&#1585;&#1608;&#1583; &#1605;&#1608;&#1601;&#1602; &#1576;&#1608;&#1583;');
+      } catch (e) { showToast(e.message); }
+    };
+    document.getElementById('homeRegister').onclick = async function() {
+      try {
+        var data = await api('/api/register', {
+          username: document.getElementById('homeUsername').value,
+          password: document.getElementById('homePassword').value
+        });
+        currentUser = data.user;
+        updateAccount();
+        showToast('&#1579;&#1576;&#1578;&#8204;&#1606;&#1575;&#1605; &#1575;&#1606;&#1580;&#1575;&#1605; &#1588;&#1583;');
+      } catch (e) { showToast(e.message); }
+    };
+    document.getElementById('homeLogout').onclick = async function() {
+      try { await api('/api/logout', {}); } catch (e) {}
+      currentUser = null;
+      updateAccount();
+      showToast('&#1582;&#1585;&#1608;&#1580; &#1575;&#1606;&#1580;&#1575;&#1605; &#1588;&#1583;');
+    };
+    document.getElementById('homeBonus').onclick = async function() {
+      try {
+        var data = await api('/api/daily-bonus', {});
+        showToast(data.message || 'Daily bonus claimed');
+        await loadMe();
+      } catch (e) { showToast(e.message); }
+    };
     document.querySelectorAll('.game-card.soon').forEach(function(card) {
-      card.addEventListener('click', function() { showToast(card.getAttribute('data-game') || 'Game'); });
+      card.addEventListener('click', function() {
+        var name = card.getAttribute('data-game') || 'Game';
+        showToast(name + ' - ' + 'Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯');
+      });
     });
+    loadMe();
   </script>
 </body>
 </html>`);
@@ -1074,9 +1289,76 @@ app.get("/games/poker", (req, res) => {
   <title>Poker Royale</title>
   <style>
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} body{margin:0;min-height:100vh;font-family:Arial,sans-serif;background:radial-gradient(circle at top,#115c39 0%,#07150d 45%,#020403 100%);color:white;overflow-x:hidden;padding-bottom:calc(124px + env(safe-area-inset-bottom))} body.rtl{direction:rtl;font-family:Arial,Tahoma,sans-serif}.app{width:100%;max-width:1180px;margin:0 auto;padding:14px}.top-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}.logo{color:#facc15;font-size:28px;font-weight:900;text-shadow:0 0 20px rgba(250,204,21,.65)}.lang-btn,.small-btn,.btn{border:none;cursor:pointer;font-weight:900}.lang-btn{border:1px solid rgba(250,204,21,.45);background:rgba(0,0,0,.45);color:#facc15;border-radius:999px;padding:9px 13px}.auth-panel,.panel,.log{background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:14px;box-shadow:0 18px 55px rgba(0,0,0,.25)}.auth-panel{margin-bottom:12px}.auth-grid{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:center}.input{width:100%;border:1px solid rgba(250,204,21,.35);background:rgba(0,0,0,.45);color:white;border-radius:12px;padding:12px;outline:none;font-size:15px}.small-btn{border-radius:12px;padding:12px;color:white;background:#166534}.register-btn{background:#ca8a04;color:#111827}.logout-btn{background:#991b1b}.bonus-btn{background:#2563eb}.reload-btn{background:#7c3aed}.user-card{display:none;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.user-info strong{color:#facc15}.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}.stat-box{background:rgba(255,255,255,.06);border:1px solid rgba(250,204,21,.18);border-radius:12px;padding:8px;font-size:12px;color:#d1d5db}.stat-box strong{color:#facc15}.top-status{margin:12px auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.status-pill{background:rgba(0,0,0,.42);border:1px solid rgba(250,204,21,.28);border-radius:12px;padding:9px 8px;font-size:12px;color:#d1d5db}.status-pill strong{color:#facc15}.main-layout{display:grid;grid-template-columns:285px 1fr;gap:14px;align-items:start}.panel h2{margin:0 0 10px;color:#facc15;font-size:17px}.room-card{border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.035));border-radius:16px;padding:12px;margin-bottom:10px;cursor:pointer}.room-card.active{border-color:#facc15;background:rgba(250,204,21,.12)}.room-title{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900;margin-bottom:6px}.room-badge{font-size:10px;border-radius:999px;padding:3px 7px;background:#166534;color:#bbf7d0}.room-badge.playing{background:#7c2d12;color:#fed7aa}.room-meta{color:#d1d5db;font-size:12px;line-height:1.55}.join-pill{margin-top:8px;background:#facc15;color:#111827;text-align:center;border-radius:999px;padding:7px;font-weight:900;font-size:12px}.leaderboard-list,.history-list{display:grid;gap:8px;font-size:12px;color:#d1d5db}.list-item{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px;line-height:1.45}.poker-table{position:relative;min-height:565px;border-radius:48%;background:radial-gradient(circle at center,#15803d 0%,#166534 45%,#052e16 100%);border:12px solid #7c2d12;box-shadow:inset 0 0 48px rgba(0,0,0,.56),0 25px 70px rgba(0,0,0,.55);overflow:hidden}.table-line{position:absolute;inset:32px;border-radius:48%;border:2px dashed rgba(250,204,21,.32);pointer-events:none}.dealer{position:absolute;top:38px;left:50%;transform:translateX(-50%);background:#facc15;color:#111827;padding:7px 14px;border-radius:999px;font-weight:900;font-size:13px;z-index:7}.community{position:absolute;top:178px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:8}.card{width:52px;height:74px;background:#fff;color:#111827;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;box-shadow:0 12px 22px rgba(0,0,0,.38)}.card.red{color:#dc2626}.card.back{background:linear-gradient(135deg,#991b1b,#450a0a);color:#facc15;border:2px solid rgba(250,204,21,.8)}.pot{position:absolute;top:276px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.58);border:1px solid rgba(250,204,21,.55);border-radius:18px;padding:10px 18px;color:#facc15;font-weight:900;z-index:8}.turn-status{position:absolute;top:334px;left:50%;transform:translateX(-50%);background:rgba(2,6,23,.72);border:1px solid rgba(34,197,94,.5);border-radius:14px;padding:10px 14px;min-width:240px;color:#bbf7d0;text-align:center;font-size:13px;z-index:8}.my-cards{position:absolute;bottom:105px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:12}.player{position:absolute;width:118px;text-align:center;z-index:10}.avatar{width:58px;height:58px;margin:0 auto 5px;border-radius:50%;background:radial-gradient(circle at top,#facc15,#a16207);border:3px solid #fff7ed;color:#111827;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:21px}.player.turn .avatar{box-shadow:0 0 0 4px rgba(34,197,94,.55),0 0 24px rgba(34,197,94,.65)}.player.folded{opacity:.45}.player-name{background:rgba(0,0,0,.7);border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.role-badge{display:inline-block;margin-top:3px;background:#facc15;color:#111827;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:900}.danger-badge{background:#ef4444;color:white}.chips{margin-top:4px;color:#facc15;font-size:12px}.bet{margin-top:2px;color:#93c5fd;font-size:11px}.seat-0{left:50%;bottom:24px;transform:translateX(-50%)}.seat-1{left:48px;bottom:115px}.seat-2{left:48px;top:100px}.seat-3{right:48px;top:100px}.seat-4{right:48px;bottom:115px}.seat-5{left:50%;top:72px;transform:translateX(-50%)}.actions{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:2000;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;width:min(96%,620px);background:rgba(0,0,0,.55);border:1px solid rgba(250,204,21,.25);border-radius:22px;padding:10px;backdrop-filter:blur(10px)}.btn{border-radius:999px;padding:12px 14px;min-width:78px;color:white;font-size:13px}.btn:disabled{opacity:.42;cursor:not-allowed}.fold{background:#991b1b}.call{background:#166534}.raise{background:#ca8a04;color:#111827}.allin{background:#7c3aed}.start{background:#2563eb}.log{margin-top:14px;font-size:13px;color:#d1d5db;max-height:170px;overflow-y:auto;line-height:1.55}.log-item{border-bottom:1px solid rgba(255,255,255,.08);padding:5px 0}.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(2,6,23,.92);border:1px solid rgba(250,204,21,.35);color:#fff;border-radius:999px;padding:11px 16px;font-weight:900;font-size:13px;box-shadow:0 18px 55px rgba(0,0,0,.4);display:none}.toast.show{display:block}.chat-panel{margin-top:14px;background:rgba(0,0,0,.46);border:1px solid rgba(250,204,21,.18);border-radius:18px;padding:12px}.chat-title{display:flex;justify-content:space-between;align-items:center;color:#facc15;font-weight:900;margin-bottom:8px}.chat-messages{height:160px;overflow-y:auto;background:rgba(2,6,23,.35);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:9px;display:flex;flex-direction:column;gap:7px}.chat-line{font-size:12px;line-height:1.45;color:#e5e7eb;word-break:break-word}.chat-line strong{color:#facc15}.chat-time{color:#9ca3af;font-size:10px;margin-inline-start:4px}.chat-system{color:#bbf7d0;font-style:italic}.chat-form{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}.chat-input{border:1px solid rgba(250,204,21,.35);background:rgba(0,0,0,.45);color:white;border-radius:999px;padding:11px 13px;outline:none}.chat-send{border:none;border-radius:999px;background:#facc15;color:#111827;font-weight:900;padding:0 16px;cursor:pointer}@media(max-width:850px){.auth-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr 1fr}.main-layout{grid-template-columns:1fr}.top-status{grid-template-columns:1fr}.logo{font-size:24px}.poker-table{min-height:520px;border-width:8px}.community{top:174px;gap:6px}.card{width:43px;height:62px;font-size:17px}.pot{top:256px}.turn-status{top:310px;min-width:215px}.my-cards{bottom:98px}.player{width:100px}.avatar{width:50px;height:50px}.seat-0{left:50%;bottom:22px;transform:translateX(-50%)}.seat-1{left:10px;bottom:112px}.seat-2{left:10px;top:108px}.seat-3{right:10px;top:108px}.seat-4{right:10px;bottom:112px}.seat-5{left:50%;top:66px;transform:translateX(-50%)}.btn{min-width:68px;padding:10px 10px;font-size:12px}}
+  
+
+/* ================================
+   POKER CLEAN WINDOW PATCH
+   Hide account, stats, chat, online table panels from /games/poker
+   ================================ */
+body.poker-clean-mode .auth-panel,
+body.poker-clean-mode .top-status,
+body.poker-clean-mode .main-layout > aside.panel,
+body.poker-clean-mode .chat-panel,
+body.poker-clean-mode .log {
+  display: none !important;
+}
+
+body.poker-clean-mode .app {
+  max-width: 980px !important;
+}
+
+body.poker-clean-mode .main-layout {
+  display: block !important;
+}
+
+body.poker-clean-mode main {
+  width: 100% !important;
+}
+
+body.poker-clean-mode .top-row {
+  margin-bottom: 14px !important;
+}
+
+body.poker-clean-mode .poker-table {
+  margin-top: 8px !important;
+  min-height: 600px !important;
+}
+
+body.poker-clean-mode .turn-status {
+  top: 330px !important;
+}
+
+body.poker-clean-mode .actions {
+  box-shadow: 0 -18px 55px rgba(0,0,0,.50) !important;
+}
+
+body.poker-clean-mode::after {
+  content: "POKER TABLE";
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(250,204,21,.96), rgba(202,138,4,.94));
+  color: #111827;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  box-shadow: 0 8px 24px rgba(250,204,21,.28);
+  pointer-events: none;
+}
+
+@media(max-width:850px){
+  body.poker-clean-mode .poker-table{
+    min-height: 560px !important;
+  }
+}
+
   </style>
 </head>
-<body>
+<body class="poker-clean-mode">
   <div id="toast" class="toast"></div>
   <div class="app">
     <div class="top-row"><div class="logo">\u2660 Poker Royale \u2663</div><button class="lang-btn" id="langBtn">FA</button></div>
