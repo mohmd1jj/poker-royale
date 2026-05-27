@@ -818,1005 +818,249 @@ app.get("/", (req, res) => {
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     :root {
-      --bg: #03140b;
-      --panel: rgba(2, 14, 8, 0.78);
-      --panel2: rgba(8, 38, 22, 0.78);
-      --gold: #facc15;
-      --gold2: #ca8a04;
-      --green: #22c55e;
-      --muted: #b8c7bd;
-      --text: #fff7c2;
-      --line: rgba(250, 204, 21, 0.22);
-      --danger: #ef4444;
+      --bg:#03140b; --panel:rgba(2,14,8,.78); --panel2:rgba(8,38,22,.78);
+      --gold:#facc15; --gold2:#ca8a04; --green:#22c55e; --muted:#b8c7bd;
+      --text:#fff7c2; --line:rgba(250,204,21,.22); --danger:#ef4444;
     }
     body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: Arial, Tahoma, sans-serif;
-      color: white;
+      margin:0; min-height:100vh; font-family:Arial,Tahoma,sans-serif; color:white;
       background:
         radial-gradient(circle at 18% 0%, rgba(250,204,21,.16), transparent 30%),
         radial-gradient(circle at 82% 8%, rgba(34,197,94,.16), transparent 32%),
-        linear-gradient(180deg, #062819 0%, #03140b 52%, #010604 100%);
-      padding: calc(14px + env(safe-area-inset-top)) 14px calc(22px + env(safe-area-inset-bottom));
-      overflow-x: hidden;
+        linear-gradient(180deg,#062819 0%,#03140b 52%,#010604 100%);
+      padding:calc(12px + env(safe-area-inset-top)) 14px calc(96px + env(safe-area-inset-bottom));
+      overflow-x:hidden;
     }
-    .shell { width: 100%; max-width: 980px; margin: 0 auto; }
+    .shell { width:100%; max-width:980px; margin:0 auto; }
+
+    .utilityBar {
+      direction:ltr; min-height:56px; margin:0 0 14px; padding:7px;
+      border:1px solid var(--line); border-radius:24px;
+      background:linear-gradient(135deg,rgba(0,0,0,.72),rgba(5,46,22,.46));
+      box-shadow:0 18px 44px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+      display:flex; align-items:center; gap:10px;
+    }
+    .accountMini {
+      width:42px; height:42px; border:1px solid rgba(250,204,21,.42); border-radius:16px;
+      display:grid; place-items:center; text-decoration:none; font-size:22px;
+      background:linear-gradient(180deg,#fff7ad,var(--gold) 46%,#b45309);
+      box-shadow:0 10px 24px rgba(250,204,21,.22);
+      color:#07121f; flex:0 0 auto;
+    }
+    .walletMini {
+      direction:ltr; height:42px; min-width:118px; padding:6px 12px 6px 7px;
+      border:1px solid rgba(250,204,21,.25); border-radius:16px;
+      background:rgba(0,0,0,.36); display:flex; align-items:center; gap:8px;
+      color:#fff7ad; font-weight:900; font-size:13px; flex:0 0 auto;
+    }
+    .pokerChip {
+      width:30px; height:30px; border-radius:50%; position:relative; flex:0 0 auto;
+      background:conic-gradient(#e11d48 0 18deg,#fff 18deg 36deg,#2563eb 36deg 54deg,#fff 54deg 72deg,#16a34a 72deg 90deg,#fff 90deg 108deg,#7c3aed 108deg 126deg,#fff 126deg 144deg,#ca8a04 144deg 162deg,#fff 162deg 180deg,#e11d48 180deg 198deg,#fff 198deg 216deg,#2563eb 216deg 234deg,#fff 234deg 252deg,#16a34a 252deg 270deg,#fff 270deg 288deg,#7c3aed 288deg 306deg,#fff 306deg 324deg,#ca8a04 324deg 342deg,#fff 342deg 360deg);
+      box-shadow:0 5px 12px rgba(0,0,0,.28), inset 0 0 0 2px rgba(255,255,255,.85);
+    }
+    .pokerChip:before { content:""; position:absolute; inset:7px; border-radius:50%; background:#fff7ed; box-shadow:inset 0 0 0 2px #11182722; }
+    .pokerChip:after { content:"PR"; position:absolute; inset:0; display:grid; place-items:center; color:#07121f; font-weight:1000; font-size:8px; letter-spacing:.2px; }
+    .barFill { flex:1; min-height:1px; }
+
     .hero {
-      position: relative;
-      border: 1px solid var(--line);
-      border-radius: 30px;
-      padding: 18px;
-      background:
-        linear-gradient(145deg, rgba(0,0,0,.72), rgba(5,46,22,.54)),
-        radial-gradient(circle at top right, rgba(250,204,21,.13), transparent 42%);
-      box-shadow: 0 22px 60px rgba(0,0,0,.44), inset 0 1px 0 rgba(255,255,255,.07);
-      overflow: hidden;
+      position:relative; border:1px solid var(--line); border-radius:30px; padding:18px;
+      background:linear-gradient(145deg,rgba(0,0,0,.72),rgba(5,46,22,.54)), radial-gradient(circle at top right,rgba(250,204,21,.13),transparent 42%);
+      box-shadow:0 22px 60px rgba(0,0,0,.44), inset 0 1px 0 rgba(255,255,255,.07); overflow:hidden;
     }
-    .hero:after {
-      content: "";
-      position: absolute;
-      width: 240px; height: 240px;
-      border-radius: 50%;
-      border: 38px solid rgba(250,204,21,.045);
-      left: -90px; bottom: -120px;
+    .hero:after { content:""; position:absolute; width:240px; height:240px; border-radius:50%; border:38px solid rgba(250,204,21,.045); left:-90px; bottom:-120px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; position:relative; z-index:2; }
+    .brand { display:flex; align-items:center; gap:12px; min-width:0; }
+    .mark { width:66px; height:66px; border-radius:22px; display:grid; place-items:center; background:linear-gradient(180deg,#fff7ad,var(--gold) 48%,#b45309); color:#07121f; font-weight:1000; font-size:25px; box-shadow:0 14px 34px rgba(250,204,21,.25); flex:0 0 auto; }
+    h1 { margin:0; font-size:clamp(34px,8vw,60px); line-height:.95; color:#fff7ad; letter-spacing:.5px; }
+    .subtitle { margin:8px 0 0; color:var(--muted); font-size:14px; line-height:1.7; }
+    .heroText { position:relative; z-index:2; margin-top:26px; }
+    .heroText h2 { margin:0 0 12px; color:var(--gold); font-size:clamp(26px,7vw,44px); line-height:1.25; }
+    .heroText p { margin:0; color:#dce7df; font-size:16px; line-height:2; max-width:760px; }
+    .sectionHead { margin:34px 2px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .sectionHead h2 { margin:0; color:var(--gold); font-size:30px; }
+    .homePill { border:1px solid var(--line); border-radius:999px; padding:8px 18px; color:#dce7df; background:rgba(0,0,0,.28); font-weight:900; }
+    .gamesGrid { display:grid; grid-template-columns:1fr; gap:16px; }
+    .gameCard {
+      position:relative; min-height:164px; border:1px solid var(--line); border-radius:28px;
+      padding:22px 22px; overflow:hidden; text-decoration:none; color:white;
+      background:linear-gradient(145deg,rgba(0,0,0,.72),rgba(5,46,22,.48));
+      box-shadow:0 18px 44px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.06);
+      display:flex; align-items:center; justify-content:space-between; gap:18px;
     }
-    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: relative; z-index: 2; }
-    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .mark {
-      width: 66px; height: 66px; border-radius: 22px;
-      display: grid; place-items: center;
-      background: linear-gradient(180deg, #fff7ad, var(--gold) 48%, #b45309);
-      color: #07121f;
-      font-weight: 1000;
-      font-size: 25px;
-      box-shadow: 0 14px 34px rgba(250,204,21,.25);
-      flex: 0 0 auto;
-    }
-    h1 { margin: 0; font-size: clamp(34px, 8vw, 60px); line-height: .95; color: #fff7ad; letter-spacing: .5px; }
-    .subtitle { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
-    .lang {
-      border: 1px solid rgba(250,204,21,.5);
-      background: rgba(0,0,0,.42);
-      color: var(--gold);
-      border-radius: 999px;
-      width: 58px; height: 58px;
-      font-weight: 1000;
-      font-size: 16px;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
-      flex: 0 0 auto;
-    }
-    .account-box {
-      position: relative;
-      z-index: 2;
-      margin-top: 14px;
-      border: 1px solid rgba(250,204,21,.18);
-      border-radius: 22px;
-      padding: 12px;
-      background: rgba(0,0,0,.34);
-      display: grid;
-      gap: 10px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-    }
-    .account-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-    .account-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
-    .account-avatar {
-      width: 38px; height: 38px; border-radius: 14px;
-      display: grid; place-items: center;
-      background: linear-gradient(135deg, rgba(250,204,21,.95), rgba(202,138,4,.85));
-      color: #111827; font-weight: 1000; direction: ltr;
-    }
-    .account-name { color: #fff7ad; font-weight: 1000; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-    .coin-pill {
-      display: inline-flex; align-items: center; gap: 7px;
-      border: 1px solid rgba(250,204,21,.28);
-      border-radius: 999px;
-      padding: 8px 12px;
-      background: rgba(250,204,21,.10);
-      color: #fff7ad;
-      font-weight: 1000;
-      font-size: 13px;
-      direction: ltr;
-    }
-    .coin-dot { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #fff7ad, #facc15 52%, #b45309); box-shadow: 0 0 13px rgba(250,204,21,.55); }
-    .login-mini { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; }
-    .login-mini input {
-      min-width: 0;
-      border: 1px solid rgba(250,204,21,.22);
-      background: rgba(0,0,0,.38);
-      color: white;
-      border-radius: 13px;
-      padding: 11px 12px;
-      outline: 0;
-      font-size: 13px;
-    }
-    .mini-btn {
-      border: 0;
-      border-radius: 13px;
-      padding: 11px 13px;
-      font-weight: 1000;
-      color: #fff;
-      background: linear-gradient(135deg, #166534, #22c55e);
-      white-space: nowrap;
-      cursor: pointer;
-    }
-    .mini-btn.gold { color: #111827; background: linear-gradient(135deg, #fff7ad, #facc15, #ca8a04); }
-    .mini-btn.ghost { background: rgba(255,255,255,.07); color: #dbe8df; border: 1px solid rgba(255,255,255,.10); }
-    .headline { position: relative; z-index: 2; margin-top: 22px; }
-    .headline h2 { margin: 0; color: var(--gold); font-size: clamp(25px, 6vw, 44px); line-height: 1.35; }
-    .headline p { margin: 10px 0 0; color: #d7e4dc; font-size: 15px; line-height: 1.9; max-width: 760px; }
-    .section-title {
-      margin: 24px 4px 14px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      color: var(--gold);
-      font-size: 23px;
-      font-weight: 1000;
-    }
-    .section-title small {
-      color: var(--muted); font-size: 12px; border: 1px solid rgba(250,204,21,.22); border-radius: 999px; padding: 7px 10px; background: rgba(0,0,0,.25);
-    }
-    .games { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-    .game-card {
-      position: relative;
-      min-height: 206px;
-      border-radius: 32px;
-      border: 1px solid rgba(250,204,21,.20);
-      padding: 18px;
-      background:
-        radial-gradient(circle at 16% 22%, var(--glow), transparent 34%),
-        linear-gradient(145deg, rgba(0,0,0,.72), rgba(6,30,18,.82));
-      box-shadow: 0 18px 52px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.07);
-      overflow: hidden;
-      display: flex; flex-direction: column; justify-content: space-between;
-      text-decoration: none;
-      color: inherit;
-      cursor: pointer;
-    }
-    .game-card:active { transform: scale(.985); }
-    .game-card:after {
-      content: ""; position: absolute; inset: auto -34px -46px auto;
-      width: 155px; height: 155px; border-radius: 50%; border: 28px solid rgba(255,255,255,.035);
-    }
-    .game-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; position: relative; z-index: 1; }
-    .logo-wrap {
-      width: 86px; height: 86px; border-radius: 28px;
-      display: grid; place-items: center;
-      background: linear-gradient(145deg, rgba(255,255,255,.13), rgba(255,255,255,.04));
-      border: 1px solid rgba(255,255,255,.12);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 14px 32px rgba(0,0,0,.26);
-      direction: ltr;
-      overflow: hidden;
-      flex: 0 0 auto;
-    }
-    .game-logo { width: 66px; height: 66px; position: relative; display: grid; place-items: center; color: var(--accent); font-weight: 1000; }
-    .logo-poker { font-size: 34px; }
-    .logo-poker::before { content: "A"; transform: rotate(-8deg); }
-    .logo-poker::after { content: "\\2660"; position: absolute; bottom: 7px; right: 10px; font-size: 20px; color: #fff7ad; }
-    .logo-chess { font-size: 42px; }
-    .logo-chess::before { content: "\\265E"; }
-    .logo-mench { grid-template-columns: repeat(2, 20px); grid-template-rows: repeat(2,20px); gap: 5px; }
-    .logo-mench span { width: 20px; height: 20px; border-radius: 50%; background: currentColor; box-shadow: 0 0 16px color-mix(in srgb, currentColor 55%, transparent); }
-    .logo-backgammon::before, .logo-backgammon::after { content:""; position:absolute; width: 18px; height: 54px; background: currentColor; clip-path: polygon(50% 0,100% 100%,0 100%); opacity:.95; }
-    .logo-backgammon::before { left: 10px; top: 6px; }
-    .logo-backgammon::after { right: 10px; bottom: 6px; transform: rotate(180deg); color:#fff7ad; background:#fff7ad; }
-    .logo-hokm { font-size: 35px; }
-    .logo-hokm::before { content:"\\265B"; }
-    .logo-hokm::after { content:"H"; position:absolute; right: 7px; bottom: 2px; font-size: 18px; color:#fff7ad; }
-    .logo-4barg { font-size: 33px; }
-    .logo-4barg::before { content:"4"; }
-    .logo-4barg::after { content:"\\2663"; position:absolute; right: 5px; bottom: 2px; font-size: 24px; color:#fff7ad; }
-    .badge {
-      border: 1px solid rgba(250,204,21,.28);
-      background: rgba(0,0,0,.34);
-      color: var(--gold);
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-size: 12px;
-      font-weight: 1000;
-      white-space: nowrap;
-    }
-    .badge.live { background: rgba(34,197,94,.16); border-color: rgba(34,197,94,.36); color: #86efac; }
-    .game-name { position: relative; z-index: 1; color: #fff7ad; font-size: 30px; font-weight: 1000; margin-bottom: 7px; }
-    .game-desc { position: relative; z-index: 1; color: #cbd5e1; font-size: 14px; line-height: 1.7; }
-    .bottom-nav {
-      position: sticky; bottom: calc(10px + env(safe-area-inset-bottom));
-      margin-top: 18px;
-      border: 1px solid rgba(250,204,21,.18);
-      border-radius: 24px;
-      background: rgba(0,0,0,.62);
-      backdrop-filter: blur(12px);
-      padding: 9px;
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
-      box-shadow: 0 -12px 42px rgba(0,0,0,.28);
-    }
-    .nav-item { border: 0; border-radius: 17px; padding: 13px 8px; color: #dbe8df; background: transparent; font-weight: 900; }
-    .nav-item.active { color: #111827; background: linear-gradient(135deg, #fff7ad, var(--gold)); }
-    .toast {
-      position: fixed; left: 14px; right: 14px; bottom: calc(86px + env(safe-area-inset-bottom));
-      border: 1px solid rgba(250,204,21,.24); border-radius: 18px; padding: 13px 14px;
-      background: rgba(0,0,0,.82); color: #fff7ad; font-weight: 900; text-align: center;
-      opacity: 0; transform: translateY(10px); transition: .2s; pointer-events: none; z-index: 20;
-    }
-    .toast.show { opacity: 1; transform: translateY(0); }
-
-    .account-widget {
-      position: fixed;
-      left: 14px;
-      top: calc(16px + env(safe-area-inset-top));
-      z-index: 50;
-      direction: rtl;
-    }
-    .account-toggle {
-      width: 58px;
-      min-height: 64px;
-      border: 1px solid rgba(250,204,21,.28);
-      border-radius: 22px;
-      background:
-        radial-gradient(circle at top, rgba(250,204,21,.22), transparent 52%),
-        rgba(0,0,0,.66);
-      color: #fff7ad;
-      display: grid;
-      place-items: center;
-      gap: 3px;
-      box-shadow: 0 14px 38px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
-      backdrop-filter: blur(12px);
-      cursor: pointer;
-    }
-    .account-icon {
-      width: 34px; height: 34px;
-      border-radius: 14px;
-      display: grid; place-items: center;
-      background: linear-gradient(135deg, #fff7ad, #facc15, #ca8a04);
-      color: #111827;
-      font-size: 20px;
-      box-shadow: 0 0 18px rgba(250,204,21,.28);
-    }
-    .mini-coin {
-      max-width: 48px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      direction: ltr;
-      font-size: 10px;
-      font-weight: 1000;
-      color: #facc15;
-    }
-    .account-panel {
-      position: absolute;
-      left: 0;
-      top: 74px;
-      width: min(342px, calc(100vw - 28px));
-      border: 1px solid rgba(250,204,21,.22);
-      border-radius: 24px;
-      padding: 12px;
-      background:
-        linear-gradient(145deg, rgba(0,0,0,.86), rgba(5,46,22,.76)),
-        radial-gradient(circle at top right, rgba(250,204,21,.13), transparent 40%);
-      box-shadow: 0 22px 70px rgba(0,0,0,.50), inset 0 1px 0 rgba(255,255,255,.07);
-      backdrop-filter: blur(16px);
-      display: none;
-    }
-    .account-widget.open .account-panel { display: grid; gap: 10px; }
-    .account-note { color:#b8c7bd; font-size:12px; margin-top:4px; line-height:1.6; }
-    @media (max-width: 720px) {
-      .hero { border-radius: 26px; padding: 16px; }
-      .account-widget { left: 10px; top: calc(10px + env(safe-area-inset-top)); }
-      .account-toggle { width: 54px; min-height: 60px; border-radius: 20px; }
-      .account-panel { top: 68px; width: calc(100vw - 20px); }
-
-      .topbar { align-items: flex-start; }
-      .mark { width: 58px; height: 58px; border-radius: 20px; font-size: 22px; }
-      .subtitle { font-size: 13px; }
-      .login-mini { grid-template-columns: 1fr; }
-      .games { grid-template-columns: 1fr; }
-      .game-card { min-height: 182px; border-radius: 27px; }
-      .logo-wrap { width: 76px; height: 76px; border-radius: 24px; }
-      .game-logo { width: 58px; height: 58px; }
-      .game-name { font-size: 26px; }
-    }
-
-/* ================================
-   POKER CLEAN WINDOW PATCH
-   Hide account, stats, chat, online table panels from /games/poker
-   ================================ */
-body.poker-clean-mode .auth-panel,
-body.poker-clean-mode .top-status,
-body.poker-clean-mode .main-layout > aside.panel,
-body.poker-clean-mode .chat-panel,
-body.poker-clean-mode .log {
-  display: none !important;
-}
-body.poker-clean-mode .app { max-width: 980px !important; }
-body.poker-clean-mode .main-layout { display: block !important; }
-body.poker-clean-mode main { width: 100% !important; }
-body.poker-clean-mode .top-row { margin-bottom: 14px !important; }
-body.poker-clean-mode .poker-table { margin-top: 8px !important; min-height: 600px !important; }
-body.poker-clean-mode .turn-status { top: 330px !important; }
-body.poker-clean-mode .actions { box-shadow: 0 -18px 55px rgba(0,0,0,.50) !important; }
-body.poker-clean-mode::after {
-  content: "POKER TABLE";
-  position: fixed;
-  top: calc(8px + env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9998;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(250,204,21,.96), rgba(202,138,4,.94));
-  color: #111827;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 1.4px;
-  box-shadow: 0 8px 24px rgba(250,204,21,.28);
-  pointer-events: none;
-}
-@media(max-width:850px){ body.poker-clean-mode .poker-table{ min-height: 560px !important; } }
+    .gameCard:after { content:""; position:absolute; width:220px; height:220px; border-radius:50%; border:42px solid rgba(255,255,255,.035); left:60px; bottom:-118px; }
+    .gameCard.active { background:linear-gradient(145deg,rgba(250,204,21,.10),rgba(5,46,22,.62)); }
+    .gameInfo { position:relative; z-index:2; min-width:0; }
+    .gameStatus { display:inline-flex; margin-bottom:10px; border:1px solid rgba(250,204,21,.35); border-radius:999px; padding:7px 15px; color:var(--gold); font-weight:1000; font-size:13px; background:rgba(0,0,0,.28); }
+    .gameCard.active .gameStatus { color:#bbf7d0; border-color:rgba(34,197,94,.45); background:rgba(22,163,74,.18); }
+    .gameTitle { margin:0; color:#fff7ad; font-size:32px; line-height:1.15; }
+    .gameDesc { margin:10px 0 0; color:#d9e4dd; font-size:15px; line-height:1.8; }
+    .gameLogo { position:relative; z-index:2; width:98px; height:98px; border-radius:30px; display:grid; place-items:center; background:linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.04)); border:1px solid rgba(255,255,255,.16); box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 18px 40px rgba(0,0,0,.28); flex:0 0 auto; }
+    .logoGlyph { font-size:48px; line-height:1; color:var(--accent,#facc15); filter:drop-shadow(0 0 12px color-mix(in srgb,var(--accent,#facc15),transparent 52%)); font-weight:1000; }
+    .bottomNav { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(12px + env(safe-area-inset-bottom)); width:min(92%,620px); display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:10px; border:1px solid var(--line); border-radius:28px; background:rgba(0,0,0,.68); backdrop-filter:blur(16px); z-index:30; box-shadow:0 -18px 44px rgba(0,0,0,.35); }
+    .navItem { border:none; border-radius:20px; padding:13px 8px; color:#dce7df; background:transparent; font-weight:1000; font-size:13px; text-align:center; }
+    .navItem.active { color:#07121f; background:linear-gradient(180deg,#fff7ad,var(--gold)); }
+    @media (min-width:760px) { .gamesGrid{grid-template-columns:1fr 1fr}.gameCard{min-height:190px}.gameCard:first-child{grid-column:span 2}.gameTitle{font-size:38px} }
+    @media (max-width:520px) { body{padding-left:10px;padding-right:10px}.hero{border-radius:24px;padding:16px}.mark{width:56px;height:56px;border-radius:19px}.subtitle{font-size:13px}.gameCard{min-height:152px;border-radius:24px;padding:18px 17px}.gameLogo{width:82px;height:82px;border-radius:26px}.logoGlyph{font-size:40px}.gameTitle{font-size:28px}.sectionHead h2{font-size:27px}.utilityBar{border-radius:21px}.walletMini{min-width:104px}.homePill{display:none} }
   </style>
 </head>
 <body>
-  <div class="account-widget" id="accountWidget" aria-label="User menu">
-    <button class="account-toggle" id="accountToggle" type="button" aria-label="Account">
-      <span class="account-icon">&#128100;</span>
-      <span class="mini-coin" id="miniCoin">--</span>
-    </button>
-    <section class="account-panel" aria-label="User account panel">
-      <div class="account-row">
-        <div class="account-title">
-          <div class="account-avatar" id="accountAvatar">?</div>
-          <div>
-            <div class="account-name" id="accountName">&#1705;&#1575;&#1585;&#1576;&#1585; &#1605;&#1607;&#1605;&#1575;&#1606;</div>
-            <div class="account-note">&#1605;&#1608;&#1580;&#1608;&#1583;&#1740; &#1587;&#1705;&#1607; &#1583;&#1585; &#1607;&#1605;&#1607; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575; &#1740;&#1705;&#1587;&#1575;&#1606; &#1575;&#1587;&#1578;</div>
-          </div>
-        </div>
-        <div class="coin-pill"><span class="coin-dot"></span><span id="coinAmount">--</span></div>
-      </div>
-      <div class="login-mini" id="loginMini">
-        <input id="homeUsername" placeholder="Username" autocomplete="username" />
-        <input id="homePassword" placeholder="Password" type="password" autocomplete="current-password" />
-        <button class="mini-btn" id="homeLogin" type="button">&#1608;&#1585;&#1608;&#1583;</button>
-        <button class="mini-btn gold" id="homeRegister" type="button">&#1579;&#1576;&#1578;&#8204;&#1606;&#1575;&#1605;</button>
-      </div>
-      <div class="account-row" id="loggedActions" style="display:none;">
-        <button class="mini-btn gold" id="homeBonus" type="button">&#1580;&#1575;&#1740;&#1586;&#1607; &#1585;&#1608;&#1586;&#1575;&#1606;&#1607;</button>
-        <button class="mini-btn ghost" id="homeLogout" type="button">&#1582;&#1585;&#1608;&#1580;</button>
-      </div>
-    </section>
-  </div>
   <main class="shell">
+    <div class="utilityBar" aria-label="Account and wallet bar">
+      <a class="accountMini" href="/account" aria-label="Account">&#128100;</a>
+      <div class="walletMini" aria-label="Shared chips balance"><span class="pokerChip"></span><span id="walletAmount">0</span></div>
+      <div class="barFill"></div>
+    </div>
+
     <section class="hero">
       <div class="topbar">
         <div class="brand">
           <div class="mark">PR</div>
           <div>
             <h1>Poker Royale</h1>
-            <p class="subtitle">&#1662;&#1604;&#1578;&#1601;&#1585;&#1605; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;&#1740; &#1570;&#1606;&#1604;&#1575;&#1740;&#1606; &#1705;&#1604;&#1575;&#1587;&#1740;&#1705; &#1608; &#1585;&#1602;&#1575;&#1576;&#1578;&#1740;</p>
+            <div class="subtitle" id="subtitle"></div>
           </div>
         </div>
-        <button class="lang" type="button">FA</button>
       </div>
-
-      <div class="headline">
-        <h2>&#1576;&#1575;&#1586;&#1740; &#1605;&#1608;&#1585;&#1583; &#1593;&#1604;&#1575;&#1602;&#1607;&#8204;&#1575;&#1578; &#1585;&#1575; &#1575;&#1606;&#1578;&#1582;&#1575;&#1576; &#1705;&#1606;</h2>
-        <p>&#1575;&#1586; &#1575;&#1740;&#1606; &#1589;&#1601;&#1581;&#1607; &#1608;&#1575;&#1585;&#1583; &#1662;&#1608;&#1705;&#1585; &#1588;&#1608; &#1740;&#1575; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;&#1740; &#1576;&#1593;&#1583;&#1740; &#1585;&#1575; &#1583;&#1606;&#1576;&#1575;&#1604; &#1705;&#1606;. &#1605;&#1608;&#1580;&#1608;&#1583;&#1740; &#1587;&#1705;&#1607;&#8204;&#1575;&#1578; &#1576;&#1740;&#1606; &#1607;&#1605;&#1607; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575; &#1605;&#1588;&#1578;&#1585;&#1705; &#1575;&#1587;&#1578;.</p>
+      <div class="heroText">
+        <h2 id="heroTitle"></h2>
+        <p id="heroDesc"></p>
       </div>
     </section>
 
-    <div class="section-title">
-      <span>&#1604;&#1740;&#1587;&#1578; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;</span>
-      <small>&#1589;&#1601;&#1581;&#1607; &#1575;&#1589;&#1604;&#1740;</small>
-    </div>
-
-    <section class="games" aria-label="Games">
-      <a class="game-card" href="/games/poker" style="--accent:#facc15;--glow:rgba(250,204,21,.20)">
-        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-poker"></div></div><div class="badge live">&#1601;&#1593;&#1575;&#1604;</div></div>
-        <div><div class="game-name">&#1662;&#1608;&#1705;&#1585;</div><div class="game-desc">Texas Hold&#8217;em &#1576;&#1575; &#1605;&#1740;&#1586; &#1570;&#1606;&#1604;&#1575;&#1740;&#1606; &#1608; &#1605;&#1608;&#1580;&#1608;&#1583;&#1740; &#1587;&#1705;&#1607; &#1605;&#1588;&#1578;&#1585;&#1705;</div></div>
-      </a>
-
-      <article class="game-card soon" style="--accent:#fff7ad;--glow:rgba(255,247,173,.16)" data-game="&#1588;&#1591;&#1585;&#1606;&#1580;">
-        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-chess"></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
-        <div><div class="game-name">&#1588;&#1591;&#1585;&#1606;&#1580;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1575;&#1587;&#1578;&#1585;&#1575;&#1578;&#1688;&#1740;&#1705; &#1583;&#1608;&#1606;&#1601;&#1585;&#1607; &#1576;&#1575; &#1575;&#1578;&#1575;&#1602; &#1570;&#1606;&#1604;&#1575;&#1740;&#1606;</div></div>
-      </article>
-
-      <article class="game-card soon" style="--accent:#22c55e;--glow:rgba(34,197,94,.18)" data-game="&#1605;&#1606;&#1670;">
-        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-mench"><span></span><span></span><span></span><span></span></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
-        <div><div class="game-name">&#1605;&#1606;&#1670;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1583;&#1608;&#1585;&#1607;&#1605;&#1740;&#1548; &#1587;&#1575;&#1583;&#1607; &#1608; &#1587;&#1585;&#1711;&#1585;&#1605;&#8204;&#1705;&#1606;&#1606;&#1583;&#1607;</div></div>
-      </article>
-
-      <article class="game-card soon" style="--accent:#fb923c;--glow:rgba(251,146,60,.18)" data-game="&#1578;&#1582;&#1578;&#1607; &#1606;&#1585;&#1583;">
-        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-backgammon"></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
-        <div><div class="game-name">&#1578;&#1582;&#1578;&#1607; &#1606;&#1585;&#1583;</div><div class="game-desc">&#1705;&#1604;&#1575;&#1587;&#1740;&#1705;&#1548; &#1587;&#1585;&#1740;&#1593;&#1548; &#1585;&#1602;&#1575;&#1576;&#1578;&#1740; &#1608; &#1605;&#1606;&#1575;&#1587;&#1576; &#1605;&#1608;&#1576;&#1575;&#1740;&#1604;</div></div>
-      </article>
-
-      <article class="game-card soon" style="--accent:#ef4444;--glow:rgba(239,68,68,.18)" data-game="&#1581;&#1705;&#1605;">
-        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-hokm"></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
-        <div><div class="game-name">&#1581;&#1705;&#1605;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1705;&#1575;&#1585;&#1578;&#1740; &#1578;&#1740;&#1605;&#1740; &#1608; &#1605;&#1581;&#1576;&#1608;&#1576; &#1575;&#1740;&#1585;&#1575;&#1606;&#1740;</div></div>
-      </article>
-
-      <article class="game-card soon" style="--accent:#60a5fa;--glow:rgba(96,165,250,.18)" data-game="&#1670;&#1607;&#1575;&#1585; &#1576;&#1585;&#1711;">
-        <div class="game-top"><div class="logo-wrap"><div class="game-logo logo-4barg"></div></div><div class="badge">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740;</div></div>
-        <div><div class="game-name">&#1670;&#1607;&#1575;&#1585; &#1576;&#1585;&#1711;</div><div class="game-desc">&#1576;&#1575;&#1586;&#1740; &#1705;&#1575;&#1585;&#1578;&#1740; &#1587;&#1585;&#1740;&#1593;&#1548; &#1587;&#1575;&#1583;&#1607; &#1608; &#1607;&#1740;&#1580;&#1575;&#1606;&#1740;</div></div>
-      </article>
+    <section class="sectionHead">
+      <h2 id="gamesTitle"></h2>
+      <div class="homePill" id="homePill"></div>
     </section>
 
-    <nav class="bottom-nav">
-      <button class="nav-item active" type="button">&#1582;&#1575;&#1606;&#1607;</button>
-      <button class="nav-item" type="button">&#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575;</button>
-      <button class="nav-item" type="button">&#1662;&#1585;&#1608;&#1601;&#1575;&#1740;&#1604;</button>
-    </nav>
+    <section class="gamesGrid" id="gamesGrid"></section>
   </main>
-  <div id="toast" class="toast">&#1576;&#1607;&#8204;&#1586;&#1608;&#1583;&#1740; &#1601;&#1593;&#1575;&#1604; &#1605;&#1740;&#8204;&#1588;&#1608;&#1583;</div>
+
+  <nav class="bottomNav">
+    <button class="navItem active" id="navHome"></button>
+    <button class="navItem" id="navGames"></button>
+    <a class="navItem" id="navProfile" href="/account" style="text-decoration:none;"></a>
+  </nav>
+
   <script>
-    var toast = document.getElementById('toast');
-    var timer = null;
-    var currentUser = null;
-    var accountWidget = document.getElementById('accountWidget');
-    var accountToggle = document.getElementById('accountToggle');
-    var accountName = document.getElementById('accountName');
-    var accountAvatar = document.getElementById('accountAvatar');
-    var coinAmount = document.getElementById('coinAmount');
-    var miniCoin = document.getElementById('miniCoin');
-    var loginMini = document.getElementById('loginMini');
-    var loggedActions = document.getElementById('loggedActions');
-
-    function showToast(message) {
-      toast.textContent = message;
-      toast.classList.add('show');
-      clearTimeout(timer);
-      timer = setTimeout(function(){ toast.classList.remove('show'); }, 2400);
-    }
-
-    accountToggle.onclick = function() {
-      accountWidget.classList.toggle('open');
+    const fa = {
+      subtitle:"Ù¾ÙØªÙØ±Ù Ø¨Ø§Ø²ÛâÙØ§Û Ø¢ÙÙØ§ÛÙ Ú©ÙØ§Ø³ÛÚ© Ù Ø±ÙØ§Ø¨ØªÛ",
+      heroTitle:"Ø¨Ø§Ø²Û ÙÙØ±Ø¯ Ø¹ÙØ§ÙÙâØ§Øª Ø±Ø§ Ø§ÙØªØ®Ø§Ø¨ Ú©Ù",
+      heroDesc:"Ø§Ø² Ø§ÛÙ ØµÙØ­Ù ÙØ§Ø±Ø¯ Ù¾ÙÚ©Ø± Ø´Ù ÛØ§ Ø¨Ø§Ø²ÛâÙØ§Û Ø¨Ø¹Ø¯Û Ø±Ø§ Ø¯ÙØ¨Ø§Ù Ú©Ù. ÙÙØ¬ÙØ¯Û ÚÛÙ¾ Ø¨ÛÙ ÙÙÙ Ø¨Ø§Ø²ÛâÙØ§ ÙØ´ØªØ±Ú© Ø§Ø³Øª.",
+      gamesTitle:"ÙÛØ³Øª Ø¨Ø§Ø²ÛâÙØ§", homePill:"ØµÙØ­Ù Ø§ØµÙÛ", navHome:"Ø®Ø§ÙÙ", navGames:"Ø¨Ø§Ø²ÛâÙØ§", navProfile:"Ù¾Ø±ÙÙØ§ÛÙ",
+      active:"ÙØ¹Ø§Ù", soon:"Ø¨ÙâØ²ÙØ¯Û",
+      games:[
+        {title:"Ù¾ÙÚ©Ø±", desc:"Texas Holdâem Ø¨Ø§ ÙÛØ² Ø¢ÙÙØ§ÛÙ Ù ÙÙØ¬ÙØ¯Û ÚÛÙ¾ ÙØ´ØªØ±Ú©", icon:"Aâ ", href:"/games/poker", active:true, accent:"#facc15"},
+        {title:"Ø´Ø·Ø±ÙØ¬", desc:"Ø¨Ø§Ø²Û Ø§Ø³ØªØ±Ø§ØªÚÛÚ© Ø¯ÙÙÙØ±Ù Ø¨Ø§ Ø§ØªØ§Ù Ø¢ÙÙØ§ÛÙ", icon:"â", href:"#", active:false, accent:"#fff7ad"},
+        {title:"ÙÙÚ", desc:"Ø¨Ø§Ø²Û Ú©ÙØ§Ø³ÛÚ© Ù Ø³Ø±Ú¯Ø±ÙâÚ©ÙÙØ¯Ù Ø¨Ø±Ø§Û Ø±ÙØ§Ø¨Øª Ø¯ÙØ³ØªØ§ÙÙ", icon:"ââ", href:"#", active:false, accent:"#22c55e"},
+        {title:"ØªØ®ØªÙ ÙØ±Ø¯", desc:"Ø±ÙØ§Ø¨Øª Ø³Ø±ÛØ¹ Ø¨Ø§ ØªØ§Ø³ Ù ÙÙØ±ÙâÙØ§Û Ú©ÙØ§Ø³ÛÚ©", icon:"â«âª", href:"#", active:false, accent:"#f59e0b"},
+        {title:"Ø­Ú©Ù", desc:"Ø¨Ø§Ø²Û Ú©Ø§Ø±ØªÛ ØªÛÙÛ Ø¨Ø§ ÙÙØ§ÙÛÙ Ø¢Ø´ÙØ§", icon:"â", href:"#", active:false, accent:"#ef4444"},
+        {title:"ÚÙØ§Ø± Ø¨Ø±Ú¯", desc:"Ø¨Ø§Ø²Û Ú©Ø§Ø±ØªÛ Ø³Ø±ÛØ¹ Ù Ø±ÙØ§Ø¨ØªÛ", icon:"â£4", href:"#", active:false, accent:"#38bdf8"}
+      ]
     };
-    document.addEventListener('click', function(event) {
-      if (!accountWidget.contains(event.target)) {
-        accountWidget.classList.remove('open');
-      }
-    });
-    async function api(path, body) {
-      var response = await fetch(path, {
-        method: body ? 'POST' : 'GET',
-        headers: body ? { 'Content-Type': 'application/json' } : {},
-        body: body ? JSON.stringify(body) : undefined
+    const en = {
+      subtitle:"Classic competitive online games platform",
+      heroTitle:"Choose your favorite game",
+      heroDesc:"Enter Poker from here or follow the next games. Your chip balance is shared between all games.",
+      gamesTitle:"Games List", homePill:"Home", navHome:"Home", navGames:"Games", navProfile:"Profile",
+      active:"Active", soon:"Soon",
+      games:[
+        {title:"Poker", desc:"Texas Holdâem with online table and shared chip balance", icon:"Aâ ", href:"/games/poker", active:true, accent:"#facc15"},
+        {title:"Chess", desc:"Two-player strategy game with online room", icon:"â", href:"#", active:false, accent:"#fff7ad"},
+        {title:"Ludo", desc:"Classic friendly competition board game", icon:"ââ", href:"#", active:false, accent:"#22c55e"},
+        {title:"Backgammon", desc:"Fast dice and classic checker strategy", icon:"â«âª", href:"#", active:false, accent:"#f59e0b"},
+        {title:"Hokm", desc:"Team card game with familiar rules", icon:"â", href:"#", active:false, accent:"#ef4444"},
+        {title:"Chahar Barg", desc:"Fast competitive Persian card game", icon:"â£4", href:"#", active:false, accent:"#38bdf8"}
+      ]
+    };
+    let currentLang = localStorage.getItem("pokerLang") || "fa";
+    const data = () => currentLang === "fa" ? fa : en;
+    const fmt = (n) => Number(n || 0).toLocaleString(currentLang === "fa" ? "fa-IR" : "en-US");
+    function render(){
+      const t=data();
+      document.documentElement.lang=currentLang;
+      document.documentElement.dir=currentLang === "fa" ? "rtl" : "ltr";
+      document.getElementById("subtitle").textContent=t.subtitle;
+      document.getElementById("heroTitle").textContent=t.heroTitle;
+      document.getElementById("heroDesc").textContent=t.heroDesc;
+      document.getElementById("gamesTitle").textContent=t.gamesTitle;
+      document.getElementById("homePill").textContent=t.homePill;
+      document.getElementById("navHome").textContent=t.navHome;
+      document.getElementById("navGames").textContent=t.navGames;
+      document.getElementById("navProfile").textContent=t.navProfile;
+      const grid=document.getElementById("gamesGrid");
+      grid.innerHTML="";
+      t.games.forEach((g)=>{
+        const a=document.createElement("a");
+        a.className="gameCard"+(g.active?" active":"");
+        a.href=g.href;
+        a.style.setProperty("--accent",g.accent);
+        if(!g.active){ a.onclick=(e)=>{ e.preventDefault(); alert(currentLang === "fa" ? "Ø§ÛÙ Ø¨Ø§Ø²Û Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯." : "This game is coming soon."); }; }
+        a.innerHTML='<div class="gameInfo"><span class="gameStatus">'+(g.active?t.active:t.soon)+'</span><h3 class="gameTitle"></h3><p class="gameDesc"></p></div><div class="gameLogo"><div class="logoGlyph"></div></div>';
+        a.querySelector(".gameTitle").textContent=g.title;
+        a.querySelector(".gameDesc").textContent=g.desc;
+        a.querySelector(".logoGlyph").textContent=g.icon;
+        grid.appendChild(a);
       });
-      var data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Request failed');
-      return data;
     }
-    function updateAccount() {
-      if (currentUser) {
-        accountName.textContent = currentUser.username;
-        accountAvatar.textContent = currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 'U';
-        coinAmount.textContent = Number(currentUser.chips || 0).toLocaleString('en-US');
-        miniCoin.textContent = Number(currentUser.chips || 0).toLocaleString('en-US');
-        loginMini.style.display = 'none';
-        loggedActions.style.display = 'flex';
-      } else {
-        accountName.innerHTML = '&#1705;&#1575;&#1585;&#1576;&#1585; &#1605;&#1607;&#1605;&#1575;&#1606;';
-        accountAvatar.textContent = '?';
-        coinAmount.textContent = '--';
-        miniCoin.textContent = '--';
-        loginMini.style.display = 'grid';
-        loggedActions.style.display = 'none';
-      }
+    async function loadMe(){
+      try{
+        const r=await fetch('/api/me'); const j=await r.json();
+        document.getElementById('walletAmount').textContent=fmt(j.user ? j.user.chips : 0);
+      }catch(e){ document.getElementById('walletAmount').textContent='0'; }
     }
-    async function loadMe() {
-      try {
-        var data = await api('/api/me');
-        currentUser = data.user;
-        updateAccount();
-      } catch (e) { updateAccount(); }
-    }
-    document.getElementById('homeLogin').onclick = async function() {
-      try {
-        var data = await api('/api/login', {
-          username: document.getElementById('homeUsername').value,
-          password: document.getElementById('homePassword').value
-        });
-        currentUser = data.user;
-        updateAccount();
-        showToast('&#1608;&#1585;&#1608;&#1583; &#1605;&#1608;&#1601;&#1602; &#1576;&#1608;&#1583;');
-      } catch (e) { showToast(e.message); }
-    };
-    document.getElementById('homeRegister').onclick = async function() {
-      try {
-        var data = await api('/api/register', {
-          username: document.getElementById('homeUsername').value,
-          password: document.getElementById('homePassword').value
-        });
-        currentUser = data.user;
-        updateAccount();
-        showToast('&#1579;&#1576;&#1578;&#8204;&#1606;&#1575;&#1605; &#1575;&#1606;&#1580;&#1575;&#1605; &#1588;&#1583;');
-      } catch (e) { showToast(e.message); }
-    };
-    document.getElementById('homeLogout').onclick = async function() {
-      try { await api('/api/logout', {}); } catch (e) {}
-      currentUser = null;
-      updateAccount();
-      showToast('&#1582;&#1585;&#1608;&#1580; &#1575;&#1606;&#1580;&#1575;&#1605; &#1588;&#1583;');
-    };
-    document.getElementById('homeBonus').onclick = async function() {
-      try {
-        var data = await api('/api/daily-bonus', {});
-        showToast(data.message || 'Daily bonus claimed');
-        await loadMe();
-      } catch (e) { showToast(e.message); }
-    };
-    document.querySelectorAll('.game-card.soon').forEach(function(card) {
-      card.addEventListener('click', function() {
-        var name = card.getAttribute('data-game') || 'Game';
-        showToast(name + ' - ' + 'Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯');
-      });
-    });
-    loadMe();
+    render(); loadMe();
   </script>
-<!-- =====================================================
-POKER ROYALE - TOP ACCOUNT BAR + REAL CHIP UI PATCH
-Paste this code exactly BEFORE </body> in server.js HTML.
-This patch hides the old floating account widget and adds:
-- a slim top bar
-- small user button on the left
-- poker-chip wallet next to it
-- expandable auth/account panel
-===================================================== -->
+</body>
+</html>`);
+});
 
-<style>
-  :root {
-    --pr-gold: #facc15;
-    --pr-gold2: #d97706;
-    --pr-dark: #03160d;
-    --pr-panel: rgba(0, 0, 0, 0.58);
-    --pr-border: rgba(250, 204, 21, 0.28);
-  }
+app.get("/account", (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#03140b" />
+  <title>Account - Poker Royale</title>
+  <style>
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{margin:0;min-height:100vh;font-family:Arial,Tahoma,sans-serif;color:white;background:radial-gradient(circle at 20% 0%,rgba(250,204,21,.16),transparent 30%),linear-gradient(180deg,#062819,#010604);padding:calc(16px + env(safe-area-inset-top)) 14px calc(28px + env(safe-area-inset-bottom));}
+    .wrap{width:100%;max-width:620px;margin:0 auto;}
+    .card{border:1px solid rgba(250,204,21,.22);border-radius:28px;background:linear-gradient(145deg,rgba(0,0,0,.72),rgba(5,46,22,.54));box-shadow:0 22px 60px rgba(0,0,0,.42);padding:18px;}
+    .head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}
+    .title{display:flex;align-items:center;gap:12px;min-width:0}.avatar{width:54px;height:54px;border-radius:19px;display:grid;place-items:center;background:linear-gradient(180deg,#fff7ad,#facc15 50%,#b45309);font-size:24px;color:#07121f;font-weight:1000}.title h1{margin:0;color:#fff7ad;font-size:28px}.title p{margin:4px 0 0;color:#b8c7bd;font-size:13px;line-height:1.6}
+    .homeBtn,.langBtn,.btn{border:none;border-radius:16px;padding:12px 14px;font-weight:1000;cursor:pointer;text-decoration:none;text-align:center}.homeBtn{background:rgba(0,0,0,.36);border:1px solid rgba(250,204,21,.25);color:#facc15}.langBtn{background:#facc15;color:#111827}.grid{display:grid;gap:10px}.input{width:100%;border:1px solid rgba(250,204,21,.32);background:rgba(0,0,0,.42);color:white;border-radius:16px;padding:14px;font-size:15px;outline:none}.btnGreen{background:#166534;color:white}.btnGold{background:#facc15;color:#111827}.btnBlue{background:#2563eb;color:white}.btnPurple{background:#7c3aed;color:white}.btnRed{background:#991b1b;color:white}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.info{border:1px solid rgba(250,204,21,.18);border-radius:20px;background:rgba(0,0,0,.28);padding:14px;color:#dce7df;line-height:1.8}.chipLine{display:flex;align-items:center;gap:10px;color:#fff7ad;font-weight:1000;font-size:18px;margin-top:8px;direction:ltr;justify-content:flex-start}.pokerChip{width:34px;height:34px;border-radius:50%;position:relative;flex:0 0 auto;background:conic-gradient(#e11d48 0 18deg,#fff 18deg 36deg,#2563eb 36deg 54deg,#fff 54deg 72deg,#16a34a 72deg 90deg,#fff 90deg 108deg,#7c3aed 108deg 126deg,#fff 126deg 144deg,#ca8a04 144deg 162deg,#fff 162deg 180deg,#e11d48 180deg 198deg,#fff 198deg 216deg,#2563eb 216deg 234deg,#fff 234deg 252deg,#16a34a 252deg 270deg,#fff 270deg 288deg,#7c3aed 288deg 306deg,#fff 306deg 324deg,#ca8a04 324deg 342deg,#fff 342deg 360deg);box-shadow:0 6px 14px rgba(0,0,0,.3),inset 0 0 0 2px rgba(255,255,255,.85)}.pokerChip:before{content:"";position:absolute;inset:8px;border-radius:50%;background:#fff7ed}.pokerChip:after{content:"PR";position:absolute;inset:0;display:grid;place-items:center;color:#07121f;font-size:8px;font-weight:1000}.hidden{display:none!important}.note{color:#b8c7bd;font-size:12px;line-height:1.8;margin:10px 0 0}.topActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:12px}@media(max-width:480px){.row{grid-template-columns:1fr}.title h1{font-size:24px}.card{border-radius:24px;padding:15px}.head{align-items:flex-start}.topActions{justify-content:stretch}.topActions>*{flex:1}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="topActions"><a class="homeBtn" href="/" id="homeTop"></a><button class="langBtn" id="langBtn" type="button">FA</button></div>
+    <section class="card">
+      <div class="head">
+        <div class="title"><div class="avatar">&#128100;</div><div><h1 id="pageTitle"></h1><p id="pageSub"></p></div></div>
+      </div>
 
-  /* Hide old floating/large account widgets if they exist */
-  .account-float,
-  .account-widget,
-  .account-mini,
-  .user-float,
-  .profile-floating,
-  .wallet-panel,
-  .home-wallet,
-  .auth-panel-home,
-  .top-account-card,
-  #accountWidget,
-  #accountFloat,
-  #homeWallet,
-  #walletPanel {
-    display: none !important;
-  }
+      <div id="guestBox" class="grid">
+        <input class="input" id="username" autocomplete="username" />
+        <input class="input" id="password" type="password" autocomplete="current-password" />
+        <div class="row"><button class="btn btnGreen" id="loginBtn"></button><button class="btn btnGold" id="registerBtn"></button></div>
+        <p class="note" id="guestNote"></p>
+      </div>
 
-  body {
-    padding-top: calc(72px + env(safe-area-inset-top)) !important;
-  }
-
-  .pr-top-wallet-bar {
-    position: fixed;
-    top: calc(10px + env(safe-area-inset-top));
-    left: 12px;
-    right: 12px;
-    z-index: 99999;
-    height: 54px;
-    border: 1px solid var(--pr-border);
-    border-radius: 18px;
-    background:
-      linear-gradient(135deg, rgba(0, 0, 0, 0.78), rgba(3, 22, 13, 0.72)),
-      radial-gradient(circle at left, rgba(250, 204, 21, 0.13), transparent 45%);
-    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.08);
-    backdrop-filter: blur(14px);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 10px;
-  }
-
-  .pr-user-chip-button {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    border: 1px solid rgba(250, 204, 21, 0.42);
-    background: linear-gradient(135deg, rgba(250,204,21,0.96), rgba(217,119,6,0.96));
-    color: #06120b;
-    display: grid;
-    place-items: center;
-    box-shadow: 0 8px 20px rgba(250, 204, 21, 0.22);
-    cursor: pointer;
-    flex: 0 0 auto;
-  }
-
-  .pr-user-chip-button svg {
-    width: 25px;
-    height: 25px;
-    display: block;
-  }
-
-  .pr-wallet-pill {
-    height: 42px;
-    border-radius: 999px;
-    border: 1px solid rgba(250, 204, 21, 0.30);
-    background: rgba(0, 0, 0, 0.42);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 12px 5px 6px;
-    min-width: 116px;
-    color: #fff7ad;
-    font-weight: 900;
-    letter-spacing: 0.2px;
-    flex: 0 0 auto;
-  }
-
-  .pr-poker-chip-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    position: relative;
-    flex: 0 0 auto;
-    background:
-      radial-gradient(circle at center, #ffffff 0 25%, transparent 26%),
-      conic-gradient(#ef4444 0 45deg, #ffffff 45deg 65deg, #ef4444 65deg 110deg, #ffffff 110deg 130deg, #ef4444 130deg 175deg, #ffffff 175deg 195deg, #ef4444 195deg 240deg, #ffffff 240deg 260deg, #ef4444 260deg 305deg, #ffffff 305deg 325deg, #ef4444 325deg 360deg);
-    border: 2px solid #fff7ed;
-    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35), 0 6px 14px rgba(0,0,0,0.35);
-  }
-
-  .pr-poker-chip-icon::after {
-    content: "";
-    position: absolute;
-    inset: 8px;
-    border-radius: 50%;
-    border: 2px solid #ef4444;
-    background: #fff7ed;
-  }
-
-  .pr-wallet-text {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.05;
-  }
-
-  .pr-wallet-label {
-    font-size: 9px;
-    color: rgba(255, 255, 255, 0.62);
-    font-weight: 800;
-  }
-
-  .pr-wallet-amount {
-    font-size: 14px;
-    color: #facc15;
-  }
-
-  .pr-topbar-empty {
-    flex: 1;
-    min-width: 20px;
-  }
-
-  .pr-topbar-brand {
-    font-size: 11px;
-    color: rgba(255,255,255,0.45);
-    font-weight: 900;
-    letter-spacing: 1px;
-    white-space: nowrap;
-  }
-
-  .pr-account-popover {
-    position: fixed;
-    top: calc(72px + env(safe-area-inset-top));
-    left: 12px;
-    z-index: 100000;
-    width: min(330px, calc(100vw - 24px));
-    border: 1px solid rgba(250, 204, 21, 0.32);
-    border-radius: 20px;
-    background:
-      linear-gradient(145deg, rgba(0,0,0,0.88), rgba(3,22,13,0.86)),
-      radial-gradient(circle at top left, rgba(250,204,21,0.16), transparent 45%);
-    box-shadow: 0 20px 52px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.08);
-    backdrop-filter: blur(18px);
-    padding: 14px;
-    display: none;
-  }
-
-  .pr-account-popover.pr-open {
-    display: block;
-  }
-
-  .pr-account-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 12px;
-    color: #facc15;
-    font-weight: 900;
-  }
-
-  .pr-account-close {
-    border: 0;
-    background: rgba(255,255,255,0.08);
-    color: #fff;
-    border-radius: 10px;
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
-    cursor: pointer;
-  }
-
-  .pr-auth-input {
-    width: 100%;
-    border: 1px solid rgba(250,204,21,0.28);
-    background: rgba(0,0,0,0.46);
-    color: #fff;
-    border-radius: 13px;
-    padding: 12px;
-    margin-bottom: 8px;
-    outline: none;
-    font-size: 14px;
-  }
-
-  .pr-auth-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .pr-auth-btn {
-    border: 0;
-    border-radius: 13px;
-    padding: 12px;
-    font-weight: 900;
-    cursor: pointer;
-    color: #07120b;
-    background: linear-gradient(135deg, #facc15, #d97706);
-  }
-
-  .pr-auth-btn.pr-green {
-    color: #fff;
-    background: linear-gradient(135deg, #22c55e, #166534);
-  }
-
-  .pr-auth-btn.pr-red {
-    color: #fff;
-    background: linear-gradient(135deg, #ef4444, #991b1b);
-  }
-
-  .pr-account-info {
-    display: none;
-    gap: 10px;
-  }
-
-  .pr-account-card {
-    border: 1px solid rgba(250,204,21,0.16);
-    background: rgba(255,255,255,0.06);
-    border-radius: 15px;
-    padding: 10px;
-    margin-bottom: 10px;
-    color: rgba(255,255,255,0.78);
-    font-size: 13px;
-  }
-
-  .pr-account-card strong {
-    color: #facc15;
-  }
-
-  .pr-popover-message {
-    margin-top: 10px;
-    font-size: 12px;
-    color: rgba(255,255,255,0.70);
-    min-height: 16px;
-  }
-
-  @media (max-width: 420px) {
-    .pr-top-wallet-bar {
-      left: 10px;
-      right: 10px;
-      height: 50px;
-      border-radius: 16px;
-      padding: 5px 8px;
-    }
-
-    .pr-user-chip-button {
-      width: 40px;
-      height: 40px;
-    }
-
-    .pr-wallet-pill {
-      height: 40px;
-      min-width: 105px;
-      padding-right: 10px;
-    }
-
-    .pr-topbar-brand {
-      display: none;
-    }
-  }
-</style>
-
-<script>
-(function() {
-  function qs(selector) {
-    return document.querySelector(selector);
-  }
-
-  function formatNumber(value) {
-    const number = Number(value || 0);
-    return number.toLocaleString("en-US");
-  }
-
-  function userIconSvg() {
-    return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 12.2c2.35 0 4.25-1.9 4.25-4.25S14.35 3.7 12 3.7 7.75 5.6 7.75 7.95s1.9 4.25 4.25 4.25Z" fill="#06120b"/><path d="M4.7 20.3c.65-3.35 3.5-5.55 7.3-5.55s6.65 2.2 7.3 5.55c.08.43-.25.8-.69.8H5.39c-.44 0-.77-.37-.69-.8Z" fill="#06120b"/></svg>';
-  }
-
-  async function api(path, body) {
-    const response = await fetch(path, {
-      method: body ? "POST" : "GET",
-      headers: body ? { "Content-Type": "application/json" } : {},
-      body: body ? JSON.stringify(body) : undefined
-    });
-
-    const data = await response.json().catch(function() { return {}; });
-
-    if (!response.ok) {
-      throw new Error(data.error || "Request failed.");
-    }
-
-    return data;
-  }
-
-  async function loadMe() {
-    try {
-      const data = await api("/api/me");
-      window.__prCurrentUser = data.user || null;
-      renderAccountState();
-    } catch (error) {
-      window.__prCurrentUser = null;
-      renderAccountState();
-    }
-  }
-
-  function ensureTopBar() {
-    if (qs("#prTopWalletBar")) return;
-
-    const bar = document.createElement("div");
-    bar.id = "prTopWalletBar";
-    bar.className = "pr-top-wallet-bar";
-    bar.innerHTML =
-      '<button class="pr-user-chip-button" id="prUserButton" type="button" aria-label="Account">' + userIconSvg() + '</button>' +
-      '<div class="pr-wallet-pill" id="prWalletPill">' +
-        '<span class="pr-poker-chip-icon" aria-hidden="true"></span>' +
-        '<span class="pr-wallet-text">' +
-          '<span class="pr-wallet-label">CHIPS</span>' +
-          '<span class="pr-wallet-amount" id="prWalletAmount">0</span>' +
-        '</span>' +
-      '</div>' +
-      '<div class="pr-topbar-empty"></div>' +
-      '<div class="pr-topbar-brand">POKER ROYALE</div>';
-
-    document.body.appendChild(bar);
-
-    const popover = document.createElement("div");
-    popover.id = "prAccountPopover";
-    popover.className = "pr-account-popover";
-    popover.innerHTML =
-      '<div class="pr-account-title"><span>Account</span><button class="pr-account-close" id="prAccountClose" type="button">Ã</button></div>' +
-      '<div id="prAuthBox">' +
-        '<input class="pr-auth-input" id="prUsername" placeholder="Username" autocomplete="username" />' +
-        '<input class="pr-auth-input" id="prPassword" placeholder="Password" type="password" autocomplete="current-password" />' +
-        '<div class="pr-auth-row">' +
-          '<button class="pr-auth-btn pr-green" id="prLoginBtn" type="button">Login</button>' +
-          '<button class="pr-auth-btn" id="prRegisterBtn" type="button">Register</button>' +
-        '</div>' +
-      '</div>' +
-      '<div id="prAccountInfo" class="pr-account-info">' +
-        '<div class="pr-account-card">User: <strong id="prAccountName">-</strong><br />Chips: <strong id="prAccountChips">0</strong></div>' +
-        '<div class="pr-auth-row">' +
-          '<button class="pr-auth-btn" id="prDailyBtn" type="button">Daily Bonus</button>' +
-          '<button class="pr-auth-btn pr-red" id="prLogoutBtn" type="button">Logout</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="pr-popover-message" id="prPopoverMessage"></div>';
-
-    document.body.appendChild(popover);
-
-    qs("#prUserButton").addEventListener("click", function() {
-      qs("#prAccountPopover").classList.toggle("pr-open");
-    });
-
-    qs("#prAccountClose").addEventListener("click", function() {
-      qs("#prAccountPopover").classList.remove("pr-open");
-    });
-
-    qs("#prLoginBtn").addEventListener("click", async function() {
-      await authAction("/api/login");
-    });
-
-    qs("#prRegisterBtn").addEventListener("click", async function() {
-      await authAction("/api/register");
-    });
-
-    qs("#prLogoutBtn").addEventListener("click", async function() {
-      try {
-        await api("/api/logout", {});
-        setMessage("Logged out.");
-        await loadMe();
-      } catch (error) {
-        setMessage(error.message);
-      }
-    });
-
-    qs("#prDailyBtn").addEventListener("click", async function() {
-      try {
-        const data = await api("/api/daily-bonus", {});
-        setMessage(data.message || "Daily bonus claimed.");
-        await loadMe();
-      } catch (error) {
-        setMessage(error.message);
-      }
-    });
-  }
-
-  async function authAction(path) {
-    const username = qs("#prUsername").value;
-    const password = qs("#prPassword").value;
-
-    try {
-      const data = await api(path, { username, password });
-      window.__prCurrentUser = data.user || null;
-      setMessage("Success.");
-      renderAccountState();
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
-
-  function setMessage(message) {
-    const el = qs("#prPopoverMessage");
-    if (el) el.textContent = message || "";
-  }
-
-  function renderAccountState() {
-    const user = window.__prCurrentUser;
-    const walletAmount = qs("#prWalletAmount");
-    const authBox = qs("#prAuthBox");
-    const accountInfo = qs("#prAccountInfo");
-    const accountName = qs("#prAccountName");
-    const accountChips = qs("#prAccountChips");
-
-    if (walletAmount) walletAmount.textContent = formatNumber(user ? user.chips : 0);
-
-    if (authBox && accountInfo) {
-      authBox.style.display = user ? "none" : "block";
-      accountInfo.style.display = user ? "block" : "none";
-    }
-
-    if (accountName) accountName.textContent = user ? user.username : "-";
-    if (accountChips) accountChips.textContent = formatNumber(user ? user.chips : 0);
-  }
-
-  function hideOldWidgetsAgain() {
-    const selectors = [
-      ".account-float", ".account-widget", ".account-mini", ".user-float", ".profile-floating",
-      ".wallet-panel", ".home-wallet", ".auth-panel-home", ".top-account-card",
-      "#accountWidget", "#accountFloat", "#homeWallet", "#walletPanel"
-    ];
-
-    selectors.forEach(function(selector) {
-      document.querySelectorAll(selector).forEach(function(el) {
-        if (!el.closest("#prTopWalletBar") && !el.closest("#prAccountPopover")) {
-          el.style.display = "none";
-        }
-      });
-    });
-  }
-
-  document.addEventListener("DOMContentLoaded", function() {
-    ensureTopBar();
-    hideOldWidgetsAgain();
-    loadMe();
-    setInterval(loadMe, 15000);
-    setInterval(hideOldWidgetsAgain, 2000);
-  });
-})();
-</script>
-
+      <div id="userBox" class="grid hidden">
+        <div class="info"><span id="welcomeText"></span> <strong id="accountName"></strong><div class="chipLine"><span class="pokerChip"></span><span id="chipsAmount">0</span></div><div class="note" id="sharedNote"></div></div>
+        <div class="row"><button class="btn btnBlue" id="bonusBtn"></button><button class="btn btnPurple" id="reloadBtn"></button></div>
+        <div class="row"><button class="btn btnGold" id="buyBtn"></button><button class="btn btnGold" id="sellBtn"></button></div>
+        <button class="btn btnRed" id="logoutBtn"></button>
+      </div>
+    </section>
+  </main>
+  <script>
+    const fa={home:"ØµÙØ­Ù Ø§ØµÙÛ",title:"ÙØ§Ø­ÛÙ Ú©Ø§Ø±Ø¨Ø±Û",sub:"ÙØ±ÙØ¯Ø Ø§Ø­Ø±Ø§Ø² ÙÙÛØª Ù ÙØ¯ÛØ±ÛØª ÙÙØ¬ÙØ¯Û ÚÛÙ¾",lang:"EN",username:"ÙØ§Ù Ú©Ø§Ø±Ø¨Ø±Û",password:"Ø±ÙØ² Ø¹Ø¨ÙØ±",login:"ÙØ±ÙØ¯",register:"Ø«Ø¨ØªâÙØ§Ù",guestNote:"ÙØ¨Ù Ø§Ø² ÙØ±ÙØ¯ ÙÙØ· ÙØ§Ù Ú©Ø§Ø±Ø¨Ø±ÛØ Ø±ÙØ² Ø¹Ø¨ÙØ±Ø ØªØºÛÛØ± Ø²Ø¨Ø§Ù Ù ØµÙØ­Ù Ø§ØµÙÛ Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ø§Ø³Øª.",welcome:"Ø®ÙØ´ Ø¢ÙØ¯ÛØ",shared:"ÙÙØ¬ÙØ¯Û ÚÛÙ¾ Ø¨ÛÙ ÙÙÙ Ø¨Ø§Ø²ÛâÙØ§ ÙØ´ØªØ±Ú© Ø§Ø³Øª.",bonus:"Ø¬Ø§ÛØ²Ù Ø±ÙØ²Ø§ÙÙ",reload:"Ø´Ø§Ø±Ú ÚÛÙ¾",buy:"Ø®Ø±ÛØ¯ ÚÛÙ¾",sell:"ÙØ±ÙØ´ ÚÛÙ¾",logout:"Ø®Ø±ÙØ¬",soon:"Ø§ÛÙ Ú¯Ø²ÛÙÙ Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯."};
+    const en={home:"Home",title:"Account",sub:"Login, authentication and chip balance management",lang:"FA",username:"Username",password:"Password",login:"Login",register:"Register",guestNote:"Before login, only language, username, password and home are available.",welcome:"Welcome,",shared:"Chip balance is shared between all games.",bonus:"Daily Bonus",reload:"Reload Chips",buy:"Buy Chips",sell:"Sell Chips",logout:"Logout",soon:"This option is coming soon."};
+    let currentLang=localStorage.getItem('pokerLang')||'fa';let currentUser=null;const $=id=>document.getElementById(id);const fmt=n=>Number(n||0).toLocaleString(currentLang==='fa'?'fa-IR':'en-US');function t(){return currentLang==='fa'?fa:en}function apply(){const x=t();document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==='fa'?'rtl':'ltr';$('homeTop').textContent=x.home;$('pageTitle').textContent=x.title;$('pageSub').textContent=x.sub;$('langBtn').textContent=x.lang;$('username').placeholder=x.username;$('password').placeholder=x.password;$('loginBtn').textContent=x.login;$('registerBtn').textContent=x.register;$('guestNote').textContent=x.guestNote;$('welcomeText').textContent=x.welcome;$('sharedNote').textContent=x.shared;$('bonusBtn').textContent=x.bonus;$('reloadBtn').textContent=x.reload;$('buyBtn').textContent=x.buy;$('sellBtn').textContent=x.sell;$('logoutBtn').textContent=x.logout;renderUser()}function renderUser(){if(currentUser){$('guestBox').classList.add('hidden');$('userBox').classList.remove('hidden');$('accountName').textContent=currentUser.username;$('chipsAmount').textContent=fmt(currentUser.chips)}else{$('guestBox').classList.remove('hidden');$('userBox').classList.add('hidden')}}async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw new Error(j.error||'Request failed');return j}async function loadMe(){try{const j=await api('/api/me');currentUser=j.user;renderUser()}catch(e){currentUser=null;renderUser()}}$('langBtn').onclick=()=>{currentLang=currentLang==='fa'?'en':'fa';localStorage.setItem('pokerLang',currentLang);apply()};$('loginBtn').onclick=async()=>{try{const j=await api('/api/login',{username:$('username').value,password:$('password').value});currentUser=j.user;apply()}catch(e){alert(e.message)}};$('registerBtn').onclick=async()=>{try{const j=await api('/api/register',{username:$('username').value,password:$('password').value});currentUser=j.user;apply()}catch(e){alert(e.message)}};$('logoutBtn').onclick=async()=>{await api('/api/logout',{});currentUser=null;apply()};$('bonusBtn').onclick=async()=>{try{const j=await api('/api/daily-bonus',{});alert(j.message);await loadMe()}catch(e){alert(e.message)}};$('reloadBtn').onclick=async()=>{try{const j=await api('/api/reload-chips',{});alert(j.message);await loadMe()}catch(e){alert(e.message)}};$('buyBtn').onclick=()=>alert(t().soon);$('sellBtn').onclick=()=>alert(t().soon);apply();loadMe();
+  </script>
 </body>
 </html>`);
 });
