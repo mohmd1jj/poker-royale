@@ -901,7 +901,200 @@ app.get("/", (req, res) => {
     .navItem.active { color:#07121f; background:linear-gradient(180deg,#fff7ad,var(--gold)); }
     @media (min-width:760px) { .gamesGrid{grid-template-columns:1fr 1fr}.gameCard{min-height:190px}.gameCard:first-child{grid-column:span 2}.gameTitle{font-size:38px} }
     @media (max-width:520px) { body{padding-left:10px;padding-right:10px}.hero{border-radius:24px;padding:16px}.mark{width:56px;height:56px;border-radius:19px}.subtitle{font-size:13px}.gameCard{min-height:152px;border-radius:24px;padding:18px 17px}.gameLogo{width:82px;height:82px;border-radius:26px}.logoGlyph{font-size:40px}.gameTitle{font-size:28px}.sectionHead h2{font-size:27px}.utilityBar{border-radius:21px}.walletMini{min-width:104px}.homePill{display:none} }
-  </style>
+  
+
+/* ================================
+   PREMIUM DARK UI v4 - Home
+   ================================ */
+:root{
+  --premium-bg:#060807;
+  --premium-panel:rgba(8,12,11,.82);
+  --premium-panel-2:rgba(13,25,19,.72);
+  --premium-line:rgba(219,183,94,.18);
+  --premium-gold:#d6b46a;
+  --premium-gold-soft:#bfa15f;
+  --premium-text:#f4efe2;
+  --premium-muted:#9aa79f;
+}
+body{
+  background:
+    radial-gradient(circle at 50% -10%, rgba(214,180,106,.10), transparent 34%),
+    radial-gradient(circle at 10% 10%, rgba(28,72,48,.18), transparent 34%),
+    linear-gradient(180deg,#070908 0%, #07110c 46%, #030504 100%) !important;
+  color:var(--premium-text) !important;
+}
+.utilityBar{
+  height:50px !important;
+  min-height:50px !important;
+  border-radius:18px !important;
+  border-color:var(--premium-line) !important;
+  background:rgba(3,5,4,.72) !important;
+  box-shadow:0 12px 36px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+.accountMini{
+  width:36px !important;
+  height:36px !important;
+  border-radius:13px !important;
+  font-size:18px !important;
+  background:linear-gradient(180deg,#242927,#0d1110) !important;
+  color:var(--premium-gold) !important;
+  border-color:rgba(214,180,106,.28) !important;
+  box-shadow:none !important;
+}
+.walletMini{
+  height:36px !important;
+  min-width:96px !important;
+  border-radius:13px !important;
+  background:rgba(255,255,255,.035) !important;
+  border-color:rgba(214,180,106,.20) !important;
+  color:var(--premium-text) !important;
+}
+.pokerChip{
+  width:25px !important;
+  height:25px !important;
+  filter:saturate(.72) contrast(.94);
+  opacity:.92;
+}
+.hero{
+  border-radius:24px !important;
+  padding:24px 20px !important;
+  border-color:var(--premium-line) !important;
+  background:
+    linear-gradient(145deg,rgba(7,10,9,.88),rgba(10,28,18,.62)),
+    radial-gradient(circle at 82% 18%, rgba(214,180,106,.08), transparent 35%) !important;
+  box-shadow:0 24px 70px rgba(0,0,0,.44), inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+.hero:after{ opacity:.42 !important; border-color:rgba(214,180,106,.025) !important; }
+.mark{
+  width:54px !important;
+  height:54px !important;
+  border-radius:16px !important;
+  background:linear-gradient(180deg,#1f2723,#0d1210) !important;
+  color:var(--premium-gold) !important;
+  border:1px solid rgba(214,180,106,.28) !important;
+  box-shadow:0 14px 34px rgba(0,0,0,.28) !important;
+  font-size:20px !important;
+  letter-spacing:1px;
+}
+h1{
+  color:var(--premium-text) !important;
+  font-size:clamp(30px,7vw,54px) !important;
+  letter-spacing:.2px !important;
+  font-weight:800 !important;
+}
+.subtitle{ color:var(--premium-muted) !important; }
+.heroText h2{
+  color:var(--premium-gold) !important;
+  font-size:clamp(24px,6vw,38px) !important;
+  font-weight:800 !important;
+}
+.heroText p{ color:#c3cbc5 !important; font-size:15px !important; }
+.sectionHead{ margin-top:28px !important; }
+.sectionHead h2{
+  color:var(--premium-text) !important;
+  font-size:25px !important;
+  font-weight:800 !important;
+}
+.homePill{
+  border-color:rgba(214,180,106,.20) !important;
+  color:var(--premium-muted) !important;
+  background:rgba(255,255,255,.025) !important;
+}
+.gamesGrid{ gap:12px !important; }
+.gameCard{
+  min-height:118px !important;
+  border-radius:20px !important;
+  padding:16px 17px !important;
+  border-color:rgba(214,180,106,.16) !important;
+  background:
+    linear-gradient(145deg,rgba(10,14,13,.86),rgba(9,23,16,.66)) !important;
+  box-shadow:0 16px 42px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+.gameCard:after{
+  width:150px !important;
+  height:150px !important;
+  border-width:28px !important;
+  border-color:rgba(214,180,106,.025) !important;
+  left:40px !important;
+  bottom:-90px !important;
+}
+.gameCard.active{
+  background:
+    linear-gradient(145deg,rgba(18,22,20,.92),rgba(10,33,21,.74)),
+    radial-gradient(circle at 75% 15%, rgba(214,180,106,.065), transparent 42%) !important;
+}
+.gameStatus{
+  margin-bottom:8px !important;
+  padding:5px 11px !important;
+  font-size:11px !important;
+  letter-spacing:.3px;
+  color:var(--premium-gold) !important;
+  border-color:rgba(214,180,106,.24) !important;
+  background:rgba(0,0,0,.20) !important;
+}
+.gameCard.active .gameStatus{
+  color:#c9f3d6 !important;
+  border-color:rgba(64,150,96,.32) !important;
+  background:rgba(28,90,53,.12) !important;
+}
+.gameTitle{
+  font-size:24px !important;
+  color:var(--premium-text) !important;
+  font-weight:800 !important;
+}
+.gameDesc{
+  margin-top:6px !important;
+  color:#aeb9b2 !important;
+  font-size:13px !important;
+  line-height:1.65 !important;
+}
+.gameLogo{
+  width:68px !important;
+  height:68px !important;
+  border-radius:18px !important;
+  background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.018)) !important;
+  border-color:rgba(214,180,106,.16) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 14px 30px rgba(0,0,0,.25) !important;
+}
+.logoGlyph{
+  font-size:30px !important;
+  color:var(--premium-gold) !important;
+  filter:none !important;
+  font-weight:800 !important;
+  letter-spacing:-1px;
+}
+.bottomNav{
+  width:min(92%,520px) !important;
+  border-radius:22px !important;
+  padding:7px !important;
+  gap:6px !important;
+  border-color:rgba(214,180,106,.18) !important;
+  background:rgba(4,6,5,.78) !important;
+  box-shadow:0 -18px 44px rgba(0,0,0,.44), inset 0 1px 0 rgba(255,255,255,.04) !important;
+}
+.navItem{
+  border-radius:16px !important;
+  color:#aeb9b2 !important;
+  font-weight:800 !important;
+  padding:11px 7px !important;
+}
+.navItem.active{
+  background:linear-gradient(180deg,#d6b46a,#9b7c38) !important;
+  color:#080c0a !important;
+}
+@media (min-width:760px){
+  .gameCard{min-height:142px !important;}
+  .gameTitle{font-size:28px !important;}
+}
+@media (max-width:520px){
+  .hero{padding:18px 16px !important; border-radius:21px !important;}
+  .gameCard{min-height:112px !important; padding:15px !important; border-radius:19px !important;}
+  .gameLogo{width:60px !important;height:60px !important;border-radius:16px !important;}
+  .logoGlyph{font-size:26px !important;}
+  .gameTitle{font-size:22px !important;}
+  .gameDesc{font-size:12.5px !important;}
+}
+</style>
 </head>
 <body>
   <main class="shell">
@@ -1031,7 +1224,40 @@ app.get("/account", (req, res) => {
     .head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}
     .title{display:flex;align-items:center;gap:12px;min-width:0}.avatar{width:54px;height:54px;border-radius:19px;display:grid;place-items:center;background:linear-gradient(180deg,#fff7ad,#facc15 50%,#b45309);font-size:24px;color:#07121f;font-weight:1000}.title h1{margin:0;color:#fff7ad;font-size:28px}.title p{margin:4px 0 0;color:#b8c7bd;font-size:13px;line-height:1.6}
     .homeBtn,.langBtn,.btn{border:none;border-radius:16px;padding:12px 14px;font-weight:1000;cursor:pointer;text-decoration:none;text-align:center}.homeBtn{background:rgba(0,0,0,.36);border:1px solid rgba(250,204,21,.25);color:#facc15}.langBtn{background:#facc15;color:#111827}.grid{display:grid;gap:10px}.input{width:100%;border:1px solid rgba(250,204,21,.32);background:rgba(0,0,0,.42);color:white;border-radius:16px;padding:14px;font-size:15px;outline:none}.btnGreen{background:#166534;color:white}.btnGold{background:#facc15;color:#111827}.btnBlue{background:#2563eb;color:white}.btnPurple{background:#7c3aed;color:white}.btnRed{background:#991b1b;color:white}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.info{border:1px solid rgba(250,204,21,.18);border-radius:20px;background:rgba(0,0,0,.28);padding:14px;color:#dce7df;line-height:1.8}.chipLine{display:flex;align-items:center;gap:10px;color:#fff7ad;font-weight:1000;font-size:18px;margin-top:8px;direction:ltr;justify-content:flex-start}.pokerChip{width:34px;height:34px;border-radius:50%;position:relative;flex:0 0 auto;background:conic-gradient(#e11d48 0 18deg,#fff 18deg 36deg,#2563eb 36deg 54deg,#fff 54deg 72deg,#16a34a 72deg 90deg,#fff 90deg 108deg,#7c3aed 108deg 126deg,#fff 126deg 144deg,#ca8a04 144deg 162deg,#fff 162deg 180deg,#e11d48 180deg 198deg,#fff 198deg 216deg,#2563eb 216deg 234deg,#fff 234deg 252deg,#16a34a 252deg 270deg,#fff 270deg 288deg,#7c3aed 288deg 306deg,#fff 306deg 324deg,#ca8a04 324deg 342deg,#fff 342deg 360deg);box-shadow:0 6px 14px rgba(0,0,0,.3),inset 0 0 0 2px rgba(255,255,255,.85)}.pokerChip:before{content:"";position:absolute;inset:8px;border-radius:50%;background:#fff7ed}.pokerChip:after{content:"PR";position:absolute;inset:0;display:grid;place-items:center;color:#07121f;font-size:8px;font-weight:1000}.hidden{display:none!important}.note{color:#b8c7bd;font-size:12px;line-height:1.8;margin:10px 0 0}.topActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:12px}@media(max-width:480px){.row{grid-template-columns:1fr}.title h1{font-size:24px}.card{border-radius:24px;padding:15px}.head{align-items:flex-start}.topActions{justify-content:stretch}.topActions>*{flex:1}}
-  </style>
+  
+
+/* ================================
+   PREMIUM DARK UI v4 - Account
+   ================================ */
+:root{--premium-gold:#d6b46a;--premium-text:#f4efe2;--premium-muted:#9aa79f;--premium-line:rgba(219,183,94,.18)}
+body{
+  background:
+    radial-gradient(circle at 50% -10%, rgba(214,180,106,.10), transparent 34%),
+    linear-gradient(180deg,#070908 0%, #07110c 48%, #030504 100%) !important;
+  color:var(--premium-text) !important;
+}
+.accountShell,.accountCard,.panel,.auth-panel{
+  border-color:var(--premium-line) !important;
+  background:linear-gradient(145deg,rgba(7,10,9,.88),rgba(10,28,18,.62)) !important;
+  box-shadow:0 24px 70px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+.accountTitle,h1,h2{color:var(--premium-text) !important;font-weight:800 !important;}
+.accountSubtitle,.muted,.subtitle{color:var(--premium-muted) !important;}
+.input,input{
+  background:rgba(255,255,255,.035) !important;
+  border-color:rgba(214,180,106,.18) !important;
+  color:var(--premium-text) !important;
+}
+button,.small-btn,.primaryBtn,.secondaryBtn,.homeBtn{
+  border-radius:14px !important;
+  box-shadow:none !important;
+  font-weight:800 !important;
+}
+.primaryBtn,.small-btn:not(.logout-btn){background:linear-gradient(180deg,#d6b46a,#9b7c38) !important;color:#080c0a !important;}
+.secondaryBtn,.homeBtn{background:rgba(255,255,255,.04) !important;color:var(--premium-text) !important;border:1px solid rgba(214,180,106,.18) !important;}
+.logout-btn{background:linear-gradient(180deg,#7f1d1d,#451111) !important;color:#fff !important;}
+.pokerChip{filter:saturate(.72) contrast(.94);}
+</style>
 </head>
 <body>
   <main class="wrap">
