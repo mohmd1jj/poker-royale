@@ -1038,8 +1038,72 @@ app.get("/", (req, res) => {
       opacity: 0; transform: translateY(10px); transition: .2s; pointer-events: none; z-index: 20;
     }
     .toast.show { opacity: 1; transform: translateY(0); }
+
+    .account-widget {
+      position: fixed;
+      left: 14px;
+      top: calc(16px + env(safe-area-inset-top));
+      z-index: 50;
+      direction: rtl;
+    }
+    .account-toggle {
+      width: 58px;
+      min-height: 64px;
+      border: 1px solid rgba(250,204,21,.28);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at top, rgba(250,204,21,.22), transparent 52%),
+        rgba(0,0,0,.66);
+      color: #fff7ad;
+      display: grid;
+      place-items: center;
+      gap: 3px;
+      box-shadow: 0 14px 38px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+    }
+    .account-icon {
+      width: 34px; height: 34px;
+      border-radius: 14px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, #fff7ad, #facc15, #ca8a04);
+      color: #111827;
+      font-size: 20px;
+      box-shadow: 0 0 18px rgba(250,204,21,.28);
+    }
+    .mini-coin {
+      max-width: 48px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      direction: ltr;
+      font-size: 10px;
+      font-weight: 1000;
+      color: #facc15;
+    }
+    .account-panel {
+      position: absolute;
+      left: 0;
+      top: 74px;
+      width: min(342px, calc(100vw - 28px));
+      border: 1px solid rgba(250,204,21,.22);
+      border-radius: 24px;
+      padding: 12px;
+      background:
+        linear-gradient(145deg, rgba(0,0,0,.86), rgba(5,46,22,.76)),
+        radial-gradient(circle at top right, rgba(250,204,21,.13), transparent 40%);
+      box-shadow: 0 22px 70px rgba(0,0,0,.50), inset 0 1px 0 rgba(255,255,255,.07);
+      backdrop-filter: blur(16px);
+      display: none;
+    }
+    .account-widget.open .account-panel { display: grid; gap: 10px; }
+    .account-note { color:#b8c7bd; font-size:12px; margin-top:4px; line-height:1.6; }
     @media (max-width: 720px) {
       .hero { border-radius: 26px; padding: 16px; }
+      .account-widget { left: 10px; top: calc(10px + env(safe-area-inset-top)); }
+      .account-toggle { width: 54px; min-height: 60px; border-radius: 20px; }
+      .account-panel { top: 68px; width: calc(100vw - 20px); }
+
       .topbar { align-items: flex-start; }
       .mark { width: 58px; height: 58px; border-radius: 20px; font-size: 22px; }
       .subtitle { font-size: 13px; }
@@ -1090,6 +1154,34 @@ body.poker-clean-mode::after {
   </style>
 </head>
 <body>
+  <div class="account-widget" id="accountWidget" aria-label="User menu">
+    <button class="account-toggle" id="accountToggle" type="button" aria-label="Account">
+      <span class="account-icon">&#128100;</span>
+      <span class="mini-coin" id="miniCoin">--</span>
+    </button>
+    <section class="account-panel" aria-label="User account panel">
+      <div class="account-row">
+        <div class="account-title">
+          <div class="account-avatar" id="accountAvatar">?</div>
+          <div>
+            <div class="account-name" id="accountName">&#1705;&#1575;&#1585;&#1576;&#1585; &#1605;&#1607;&#1605;&#1575;&#1606;</div>
+            <div class="account-note">&#1605;&#1608;&#1580;&#1608;&#1583;&#1740; &#1587;&#1705;&#1607; &#1583;&#1585; &#1607;&#1605;&#1607; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575; &#1740;&#1705;&#1587;&#1575;&#1606; &#1575;&#1587;&#1578;</div>
+          </div>
+        </div>
+        <div class="coin-pill"><span class="coin-dot"></span><span id="coinAmount">--</span></div>
+      </div>
+      <div class="login-mini" id="loginMini">
+        <input id="homeUsername" placeholder="Username" autocomplete="username" />
+        <input id="homePassword" placeholder="Password" type="password" autocomplete="current-password" />
+        <button class="mini-btn" id="homeLogin" type="button">&#1608;&#1585;&#1608;&#1583;</button>
+        <button class="mini-btn gold" id="homeRegister" type="button">&#1579;&#1576;&#1578;&#8204;&#1606;&#1575;&#1605;</button>
+      </div>
+      <div class="account-row" id="loggedActions" style="display:none;">
+        <button class="mini-btn gold" id="homeBonus" type="button">&#1580;&#1575;&#1740;&#1586;&#1607; &#1585;&#1608;&#1586;&#1575;&#1606;&#1607;</button>
+        <button class="mini-btn ghost" id="homeLogout" type="button">&#1582;&#1585;&#1608;&#1580;</button>
+      </div>
+    </section>
+  </div>
   <main class="shell">
     <section class="hero">
       <div class="topbar">
@@ -1102,29 +1194,6 @@ body.poker-clean-mode::after {
         </div>
         <button class="lang" type="button">FA</button>
       </div>
-
-      <section class="account-box" aria-label="User account">
-        <div class="account-row">
-          <div class="account-title">
-            <div class="account-avatar" id="accountAvatar">?</div>
-            <div>
-              <div class="account-name" id="accountName">&#1705;&#1575;&#1585;&#1576;&#1585; &#1605;&#1607;&#1605;&#1575;&#1606;</div>
-              <div style="color:#b8c7bd;font-size:12px;margin-top:4px;">&#1605;&#1608;&#1580;&#1608;&#1583;&#1740; &#1587;&#1705;&#1607; &#1583;&#1585; &#1607;&#1605;&#1607; &#1576;&#1575;&#1586;&#1740;&#8204;&#1607;&#1575; &#1740;&#1705;&#1587;&#1575;&#1606; &#1575;&#1587;&#1578;</div>
-            </div>
-          </div>
-          <div class="coin-pill"><span class="coin-dot"></span><span id="coinAmount">--</span></div>
-        </div>
-        <div class="login-mini" id="loginMini">
-          <input id="homeUsername" placeholder="Username" autocomplete="username" />
-          <input id="homePassword" placeholder="Password" type="password" autocomplete="current-password" />
-          <button class="mini-btn" id="homeLogin" type="button">&#1608;&#1585;&#1608;&#1583;</button>
-          <button class="mini-btn gold" id="homeRegister" type="button">&#1579;&#1576;&#1578;&#8204;&#1606;&#1575;&#1605;</button>
-        </div>
-        <div class="account-row" id="loggedActions" style="display:none;">
-          <button class="mini-btn gold" id="homeBonus" type="button">&#1580;&#1575;&#1740;&#1586;&#1607; &#1585;&#1608;&#1586;&#1575;&#1606;&#1607;</button>
-          <button class="mini-btn ghost" id="homeLogout" type="button">&#1582;&#1585;&#1608;&#1580;</button>
-        </div>
-      </section>
 
       <div class="headline">
         <h2>&#1576;&#1575;&#1586;&#1740; &#1605;&#1608;&#1585;&#1583; &#1593;&#1604;&#1575;&#1602;&#1607;&#8204;&#1575;&#1578; &#1585;&#1575; &#1575;&#1606;&#1578;&#1582;&#1575;&#1576; &#1705;&#1606;</h2>
@@ -1180,9 +1249,12 @@ body.poker-clean-mode::after {
     var toast = document.getElementById('toast');
     var timer = null;
     var currentUser = null;
+    var accountWidget = document.getElementById('accountWidget');
+    var accountToggle = document.getElementById('accountToggle');
     var accountName = document.getElementById('accountName');
     var accountAvatar = document.getElementById('accountAvatar');
     var coinAmount = document.getElementById('coinAmount');
+    var miniCoin = document.getElementById('miniCoin');
     var loginMini = document.getElementById('loginMini');
     var loggedActions = document.getElementById('loggedActions');
 
@@ -1192,6 +1264,15 @@ body.poker-clean-mode::after {
       clearTimeout(timer);
       timer = setTimeout(function(){ toast.classList.remove('show'); }, 2400);
     }
+
+    accountToggle.onclick = function() {
+      accountWidget.classList.toggle('open');
+    };
+    document.addEventListener('click', function(event) {
+      if (!accountWidget.contains(event.target)) {
+        accountWidget.classList.remove('open');
+      }
+    });
     async function api(path, body) {
       var response = await fetch(path, {
         method: body ? 'POST' : 'GET',
@@ -1207,12 +1288,14 @@ body.poker-clean-mode::after {
         accountName.textContent = currentUser.username;
         accountAvatar.textContent = currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 'U';
         coinAmount.textContent = Number(currentUser.chips || 0).toLocaleString('en-US');
+        miniCoin.textContent = Number(currentUser.chips || 0).toLocaleString('en-US');
         loginMini.style.display = 'none';
         loggedActions.style.display = 'flex';
       } else {
         accountName.innerHTML = '&#1705;&#1575;&#1585;&#1576;&#1585; &#1605;&#1607;&#1605;&#1575;&#1606;';
         accountAvatar.textContent = '?';
         coinAmount.textContent = '--';
+        miniCoin.textContent = '--';
         loginMini.style.display = 'grid';
         loggedActions.style.display = 'none';
       }
