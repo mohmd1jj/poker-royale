@@ -943,18 +943,18 @@ app.get("/", (req, res) => {
 
   <script>
     const fa = {
-      subtitle:"Ù¾ÙØªÙØ±Ù Ø¨Ø§Ø²ÛâÙØ§Û Ø¢ÙÙØ§ÛÙ Ú©ÙØ§Ø³ÛÚ© Ù Ø±ÙØ§Ø¨ØªÛ",
-      heroTitle:"Ø¨Ø§Ø²Û ÙÙØ±Ø¯ Ø¹ÙØ§ÙÙâØ§Øª Ø±Ø§ Ø§ÙØªØ®Ø§Ø¨ Ú©Ù",
-      heroDesc:"Ø§Ø² Ø§ÛÙ ØµÙØ­Ù ÙØ§Ø±Ø¯ Ù¾ÙÚ©Ø± Ø´Ù ÛØ§ Ø¨Ø§Ø²ÛâÙØ§Û Ø¨Ø¹Ø¯Û Ø±Ø§ Ø¯ÙØ¨Ø§Ù Ú©Ù. ÙÙØ¬ÙØ¯Û ÚÛÙ¾ Ø¨ÛÙ ÙÙÙ Ø¨Ø§Ø²ÛâÙØ§ ÙØ´ØªØ±Ú© Ø§Ø³Øª.",
-      gamesTitle:"ÙÛØ³Øª Ø¨Ø§Ø²ÛâÙØ§", homePill:"ØµÙØ­Ù Ø§ØµÙÛ", navHome:"Ø®Ø§ÙÙ", navGames:"Ø¨Ø§Ø²ÛâÙØ§", navProfile:"Ù¾Ø±ÙÙØ§ÛÙ",
-      active:"ÙØ¹Ø§Ù", soon:"Ø¨ÙâØ²ÙØ¯Û",
+      subtitle:"\u067E\u0644\u062A\u0641\u0631\u0645 \u0628\u0627\u0632\u06CC\u200C\u0647\u0627\u06CC \u0622\u0646\u0644\u0627\u06CC\u0646 \u06A9\u0644\u0627\u0633\u06CC\u06A9 \u0648 \u0631\u0642\u0627\u0628\u062A\u06CC",
+      heroTitle:"\u0628\u0627\u0632\u06CC \u0645\u0648\u0631\u062F \u0639\u0644\u0627\u0642\u0647\u200C\u0627\u062A \u0631\u0627 \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646",
+      heroDesc:"\u0627\u0632 \u0627\u06CC\u0646 \u0635\u0641\u062D\u0647 \u0648\u0627\u0631\u062F \u067E\u0648\u06A9\u0631 \u0634\u0648 \u06CC\u0627 \u0628\u0627\u0632\u06CC\u200C\u0647\u0627\u06CC \u0628\u0639\u062F\u06CC \u0631\u0627 \u062F\u0646\u0628\u0627\u0644 \u06A9\u0646. \u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E \u0628\u06CC\u0646 \u0647\u0645\u0647 \u0628\u0627\u0632\u06CC\u200C\u0647\u0627 \u0645\u0634\u062A\u0631\u06A9 \u0627\u0633\u062A.",
+      gamesTitle:"\u0644\u06CC\u0633\u062A \u0628\u0627\u0632\u06CC\u200C\u0647\u0627", homePill:"\u0635\u0641\u062D\u0647 \u0627\u0635\u0644\u06CC", navHome:"\u062E\u0627\u0646\u0647", navGames:"\u0628\u0627\u0632\u06CC\u200C\u0647\u0627", navProfile:"\u067E\u0631\u0648\u0641\u0627\u06CC\u0644",
+      active:"\u0641\u0639\u0627\u0644", soon:"\u0628\u0647\u200C\u0632\u0648\u062F\u06CC",
       games:[
-        {title:"Ù¾ÙÚ©Ø±", desc:"Texas Holdâem Ø¨Ø§ ÙÛØ² Ø¢ÙÙØ§ÛÙ Ù ÙÙØ¬ÙØ¯Û ÚÛÙ¾ ÙØ´ØªØ±Ú©", icon:"Aâ ", href:"/games/poker", active:true, accent:"#facc15"},
-        {title:"Ø´Ø·Ø±ÙØ¬", desc:"Ø¨Ø§Ø²Û Ø§Ø³ØªØ±Ø§ØªÚÛÚ© Ø¯ÙÙÙØ±Ù Ø¨Ø§ Ø§ØªØ§Ù Ø¢ÙÙØ§ÛÙ", icon:"â", href:"#", active:false, accent:"#fff7ad"},
-        {title:"ÙÙÚ", desc:"Ø¨Ø§Ø²Û Ú©ÙØ§Ø³ÛÚ© Ù Ø³Ø±Ú¯Ø±ÙâÚ©ÙÙØ¯Ù Ø¨Ø±Ø§Û Ø±ÙØ§Ø¨Øª Ø¯ÙØ³ØªØ§ÙÙ", icon:"ââ", href:"#", active:false, accent:"#22c55e"},
-        {title:"ØªØ®ØªÙ ÙØ±Ø¯", desc:"Ø±ÙØ§Ø¨Øª Ø³Ø±ÛØ¹ Ø¨Ø§ ØªØ§Ø³ Ù ÙÙØ±ÙâÙØ§Û Ú©ÙØ§Ø³ÛÚ©", icon:"â«âª", href:"#", active:false, accent:"#f59e0b"},
-        {title:"Ø­Ú©Ù", desc:"Ø¨Ø§Ø²Û Ú©Ø§Ø±ØªÛ ØªÛÙÛ Ø¨Ø§ ÙÙØ§ÙÛÙ Ø¢Ø´ÙØ§", icon:"â", href:"#", active:false, accent:"#ef4444"},
-        {title:"ÚÙØ§Ø± Ø¨Ø±Ú¯", desc:"Ø¨Ø§Ø²Û Ú©Ø§Ø±ØªÛ Ø³Ø±ÛØ¹ Ù Ø±ÙØ§Ø¨ØªÛ", icon:"â£4", href:"#", active:false, accent:"#38bdf8"}
+        {title:"\u067E\u0648\u06A9\u0631", desc:"Texas Hold\u2019em \u0628\u0627 \u0645\u06CC\u0632 \u0622\u0646\u0644\u0627\u06CC\u0646 \u0648 \u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E \u0645\u0634\u062A\u0631\u06A9", icon:"A\u2660", href:"/games/poker", active:true, accent:"#facc15"},
+        {title:"\u0634\u0637\u0631\u0646\u062C", desc:"\u0628\u0627\u0632\u06CC \u0627\u0633\u062A\u0631\u0627\u062A\u0698\u06CC\u06A9 \u062F\u0648\u0646\u0641\u0631\u0647 \u0628\u0627 \u0627\u062A\u0627\u0642 \u0622\u0646\u0644\u0627\u06CC\u0646", icon:"\u265E", href:"#", active:false, accent:"#fff7ad"},
+        {title:"\u0645\u0646\u0686", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9 \u0648 \u0633\u0631\u06AF\u0631\u0645\u200C\u06A9\u0646\u0646\u062F\u0647 \u0628\u0631\u0627\u06CC \u0631\u0642\u0627\u0628\u062A \u062F\u0648\u0633\u062A\u0627\u0646\u0647", icon:"\u25CF\u25CF", href:"#", active:false, accent:"#22c55e"},
+        {title:"\u062A\u062E\u062A\u0647 \u0646\u0631\u062F", desc:"\u0631\u0642\u0627\u0628\u062A \u0633\u0631\u06CC\u0639 \u0628\u0627 \u062A\u0627\u0633 \u0648 \u0645\u0647\u0631\u0647\u200C\u0647\u0627\u06CC \u06A9\u0644\u0627\u0633\u06CC\u06A9", icon:"\u26AB\u26AA", href:"#", active:false, accent:"#f59e0b"},
+        {title:"\u062D\u06A9\u0645", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0627\u0631\u062A\u06CC \u062A\u06CC\u0645\u06CC \u0628\u0627 \u0642\u0648\u0627\u0646\u06CC\u0646 \u0622\u0634\u0646\u0627", icon:"\u2654", href:"#", active:false, accent:"#ef4444"},
+        {title:"\u0686\u0647\u0627\u0631 \u0628\u0631\u06AF", desc:"\u0628\u0627\u0632\u06CC \u06A9\u0627\u0631\u062A\u06CC \u0633\u0631\u06CC\u0639 \u0648 \u0631\u0642\u0627\u0628\u062A\u06CC", icon:"\u26634", href:"#", active:false, accent:"#38bdf8"}
       ]
     };
     const en = {
@@ -964,12 +964,12 @@ app.get("/", (req, res) => {
       gamesTitle:"Games List", homePill:"Home", navHome:"Home", navGames:"Games", navProfile:"Profile",
       active:"Active", soon:"Soon",
       games:[
-        {title:"Poker", desc:"Texas Holdâem with online table and shared chip balance", icon:"Aâ ", href:"/games/poker", active:true, accent:"#facc15"},
-        {title:"Chess", desc:"Two-player strategy game with online room", icon:"â", href:"#", active:false, accent:"#fff7ad"},
-        {title:"Ludo", desc:"Classic friendly competition board game", icon:"ââ", href:"#", active:false, accent:"#22c55e"},
-        {title:"Backgammon", desc:"Fast dice and classic checker strategy", icon:"â«âª", href:"#", active:false, accent:"#f59e0b"},
-        {title:"Hokm", desc:"Team card game with familiar rules", icon:"â", href:"#", active:false, accent:"#ef4444"},
-        {title:"Chahar Barg", desc:"Fast competitive Persian card game", icon:"â£4", href:"#", active:false, accent:"#38bdf8"}
+        {title:"Poker", desc:"Texas Hold\u2019em with online table and shared chip balance", icon:"A\u2660", href:"/games/poker", active:true, accent:"#facc15"},
+        {title:"Chess", desc:"Two-player strategy game with online room", icon:"\u265E", href:"#", active:false, accent:"#fff7ad"},
+        {title:"Ludo", desc:"Classic friendly competition board game", icon:"\u25CF\u25CF", href:"#", active:false, accent:"#22c55e"},
+        {title:"Backgammon", desc:"Fast dice and classic checker strategy", icon:"\u26AB\u26AA", href:"#", active:false, accent:"#f59e0b"},
+        {title:"Hokm", desc:"Team card game with familiar rules", icon:"\u2654", href:"#", active:false, accent:"#ef4444"},
+        {title:"Chahar Barg", desc:"Fast competitive Persian card game", icon:"\u26634", href:"#", active:false, accent:"#38bdf8"}
       ]
     };
     let currentLang = localStorage.getItem("pokerLang") || "fa";
@@ -994,7 +994,7 @@ app.get("/", (req, res) => {
         a.className="gameCard"+(g.active?" active":"");
         a.href=g.href;
         a.style.setProperty("--accent",g.accent);
-        if(!g.active){ a.onclick=(e)=>{ e.preventDefault(); alert(currentLang === "fa" ? "Ø§ÛÙ Ø¨Ø§Ø²Û Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯." : "This game is coming soon."); }; }
+        if(!g.active){ a.onclick=(e)=>{ e.preventDefault(); alert(currentLang === "fa" ? "\u0627\u06CC\u0646 \u0628\u0627\u0632\u06CC \u0628\u0647\u200C\u0632\u0648\u062F\u06CC \u0641\u0639\u0627\u0644 \u0645\u06CC\u200C\u0634\u0648\u062F." : "This game is coming soon."); }; }
         a.innerHTML='<div class="gameInfo"><span class="gameStatus">'+(g.active?t.active:t.soon)+'</span><h3 class="gameTitle"></h3><p class="gameDesc"></p></div><div class="gameLogo"><div class="logoGlyph"></div></div>';
         a.querySelector(".gameTitle").textContent=g.title;
         a.querySelector(".gameDesc").textContent=g.desc;
@@ -1057,7 +1057,7 @@ app.get("/account", (req, res) => {
     </section>
   </main>
   <script>
-    const fa={home:"ØµÙØ­Ù Ø§ØµÙÛ",title:"ÙØ§Ø­ÛÙ Ú©Ø§Ø±Ø¨Ø±Û",sub:"ÙØ±ÙØ¯Ø Ø§Ø­Ø±Ø§Ø² ÙÙÛØª Ù ÙØ¯ÛØ±ÛØª ÙÙØ¬ÙØ¯Û ÚÛÙ¾",lang:"EN",username:"ÙØ§Ù Ú©Ø§Ø±Ø¨Ø±Û",password:"Ø±ÙØ² Ø¹Ø¨ÙØ±",login:"ÙØ±ÙØ¯",register:"Ø«Ø¨ØªâÙØ§Ù",guestNote:"ÙØ¨Ù Ø§Ø² ÙØ±ÙØ¯ ÙÙØ· ÙØ§Ù Ú©Ø§Ø±Ø¨Ø±ÛØ Ø±ÙØ² Ø¹Ø¨ÙØ±Ø ØªØºÛÛØ± Ø²Ø¨Ø§Ù Ù ØµÙØ­Ù Ø§ØµÙÛ Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ø§Ø³Øª.",welcome:"Ø®ÙØ´ Ø¢ÙØ¯ÛØ",shared:"ÙÙØ¬ÙØ¯Û ÚÛÙ¾ Ø¨ÛÙ ÙÙÙ Ø¨Ø§Ø²ÛâÙØ§ ÙØ´ØªØ±Ú© Ø§Ø³Øª.",bonus:"Ø¬Ø§ÛØ²Ù Ø±ÙØ²Ø§ÙÙ",reload:"Ø´Ø§Ø±Ú ÚÛÙ¾",buy:"Ø®Ø±ÛØ¯ ÚÛÙ¾",sell:"ÙØ±ÙØ´ ÚÛÙ¾",logout:"Ø®Ø±ÙØ¬",soon:"Ø§ÛÙ Ú¯Ø²ÛÙÙ Ø¨ÙâØ²ÙØ¯Û ÙØ¹Ø§Ù ÙÛâØ´ÙØ¯."};
+    const fa={home:"\u0635\u0641\u062D\u0647 \u0627\u0635\u0644\u06CC",title:"\u0646\u0627\u062D\u06CC\u0647 \u06A9\u0627\u0631\u0628\u0631\u06CC",sub:"\u0648\u0631\u0648\u062F\u060C \u0627\u062D\u0631\u0627\u0632 \u0647\u0648\u06CC\u062A \u0648 \u0645\u062F\u06CC\u0631\u06CC\u062A \u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E",lang:"EN",username:"\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC",password:"\u0631\u0645\u0632 \u0639\u0628\u0648\u0631",login:"\u0648\u0631\u0648\u062F",register:"\u062B\u0628\u062A\u200C\u0646\u0627\u0645",guestNote:"\u0642\u0628\u0644 \u0627\u0632 \u0648\u0631\u0648\u062F \u0641\u0642\u0637 \u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC\u060C \u0631\u0645\u0632 \u0639\u0628\u0648\u0631\u060C \u062A\u063A\u06CC\u06CC\u0631 \u0632\u0628\u0627\u0646 \u0648 \u0635\u0641\u062D\u0647 \u0627\u0635\u0644\u06CC \u062F\u0631 \u062F\u0633\u062A\u0631\u0633 \u0627\u0633\u062A.",welcome:"\u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u060C",shared:"\u0645\u0648\u062C\u0648\u062F\u06CC \u0686\u06CC\u067E \u0628\u06CC\u0646 \u0647\u0645\u0647 \u0628\u0627\u0632\u06CC\u200C\u0647\u0627 \u0645\u0634\u062A\u0631\u06A9 \u0627\u0633\u062A.",bonus:"\u062C\u0627\u06CC\u0632\u0647 \u0631\u0648\u0632\u0627\u0646\u0647",reload:"\u0634\u0627\u0631\u0698 \u0686\u06CC\u067E",buy:"\u062E\u0631\u06CC\u062F \u0686\u06CC\u067E",sell:"\u0641\u0631\u0648\u0634 \u0686\u06CC\u067E",logout:"\u062E\u0631\u0648\u062C",soon:"\u0627\u06CC\u0646 \u06AF\u0632\u06CC\u0646\u0647 \u0628\u0647\u200C\u0632\u0648\u062F\u06CC \u0641\u0639\u0627\u0644 \u0645\u06CC\u200C\u0634\u0648\u062F."};
     const en={home:"Home",title:"Account",sub:"Login, authentication and chip balance management",lang:"FA",username:"Username",password:"Password",login:"Login",register:"Register",guestNote:"Before login, only language, username, password and home are available.",welcome:"Welcome,",shared:"Chip balance is shared between all games.",bonus:"Daily Bonus",reload:"Reload Chips",buy:"Buy Chips",sell:"Sell Chips",logout:"Logout",soon:"This option is coming soon."};
     let currentLang=localStorage.getItem('pokerLang')||'fa';let currentUser=null;const $=id=>document.getElementById(id);const fmt=n=>Number(n||0).toLocaleString(currentLang==='fa'?'fa-IR':'en-US');function t(){return currentLang==='fa'?fa:en}function apply(){const x=t();document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==='fa'?'rtl':'ltr';$('homeTop').textContent=x.home;$('pageTitle').textContent=x.title;$('pageSub').textContent=x.sub;$('langBtn').textContent=x.lang;$('username').placeholder=x.username;$('password').placeholder=x.password;$('loginBtn').textContent=x.login;$('registerBtn').textContent=x.register;$('guestNote').textContent=x.guestNote;$('welcomeText').textContent=x.welcome;$('sharedNote').textContent=x.shared;$('bonusBtn').textContent=x.bonus;$('reloadBtn').textContent=x.reload;$('buyBtn').textContent=x.buy;$('sellBtn').textContent=x.sell;$('logoutBtn').textContent=x.logout;renderUser()}function renderUser(){if(currentUser){$('guestBox').classList.add('hidden');$('userBox').classList.remove('hidden');$('accountName').textContent=currentUser.username;$('chipsAmount').textContent=fmt(currentUser.chips)}else{$('guestBox').classList.remove('hidden');$('userBox').classList.add('hidden')}}async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw new Error(j.error||'Request failed');return j}async function loadMe(){try{const j=await api('/api/me');currentUser=j.user;renderUser()}catch(e){currentUser=null;renderUser()}}$('langBtn').onclick=()=>{currentLang=currentLang==='fa'?'en':'fa';localStorage.setItem('pokerLang',currentLang);apply()};$('loginBtn').onclick=async()=>{try{const j=await api('/api/login',{username:$('username').value,password:$('password').value});currentUser=j.user;apply()}catch(e){alert(e.message)}};$('registerBtn').onclick=async()=>{try{const j=await api('/api/register',{username:$('username').value,password:$('password').value});currentUser=j.user;apply()}catch(e){alert(e.message)}};$('logoutBtn').onclick=async()=>{await api('/api/logout',{});currentUser=null;apply()};$('bonusBtn').onclick=async()=>{try{const j=await api('/api/daily-bonus',{});alert(j.message);await loadMe()}catch(e){alert(e.message)}};$('reloadBtn').onclick=async()=>{try{const j=await api('/api/reload-chips',{});alert(j.message);await loadMe()}catch(e){alert(e.message)}};$('buyBtn').onclick=()=>alert(t().soon);$('sellBtn').onclick=()=>alert(t().soon);apply();loadMe();
   </script>
