@@ -1350,6 +1350,473 @@ body.poker-clean-mode::after {
     });
     loadMe();
   </script>
+<!-- =====================================================
+POKER ROYALE - TOP ACCOUNT BAR + REAL CHIP UI PATCH
+Paste this code exactly BEFORE </body> in server.js HTML.
+This patch hides the old floating account widget and adds:
+- a slim top bar
+- small user button on the left
+- poker-chip wallet next to it
+- expandable auth/account panel
+===================================================== -->
+
+<style>
+  :root {
+    --pr-gold: #facc15;
+    --pr-gold2: #d97706;
+    --pr-dark: #03160d;
+    --pr-panel: rgba(0, 0, 0, 0.58);
+    --pr-border: rgba(250, 204, 21, 0.28);
+  }
+
+  /* Hide old floating/large account widgets if they exist */
+  .account-float,
+  .account-widget,
+  .account-mini,
+  .user-float,
+  .profile-floating,
+  .wallet-panel,
+  .home-wallet,
+  .auth-panel-home,
+  .top-account-card,
+  #accountWidget,
+  #accountFloat,
+  #homeWallet,
+  #walletPanel {
+    display: none !important;
+  }
+
+  body {
+    padding-top: calc(72px + env(safe-area-inset-top)) !important;
+  }
+
+  .pr-top-wallet-bar {
+    position: fixed;
+    top: calc(10px + env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    z-index: 99999;
+    height: 54px;
+    border: 1px solid var(--pr-border);
+    border-radius: 18px;
+    background:
+      linear-gradient(135deg, rgba(0, 0, 0, 0.78), rgba(3, 22, 13, 0.72)),
+      radial-gradient(circle at left, rgba(250, 204, 21, 0.13), transparent 45%);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+    backdrop-filter: blur(14px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+  }
+
+  .pr-user-chip-button {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    border: 1px solid rgba(250, 204, 21, 0.42);
+    background: linear-gradient(135deg, rgba(250,204,21,0.96), rgba(217,119,6,0.96));
+    color: #06120b;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 8px 20px rgba(250, 204, 21, 0.22);
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+
+  .pr-user-chip-button svg {
+    width: 25px;
+    height: 25px;
+    display: block;
+  }
+
+  .pr-wallet-pill {
+    height: 42px;
+    border-radius: 999px;
+    border: 1px solid rgba(250, 204, 21, 0.30);
+    background: rgba(0, 0, 0, 0.42);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px 5px 6px;
+    min-width: 116px;
+    color: #fff7ad;
+    font-weight: 900;
+    letter-spacing: 0.2px;
+    flex: 0 0 auto;
+  }
+
+  .pr-poker-chip-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    position: relative;
+    flex: 0 0 auto;
+    background:
+      radial-gradient(circle at center, #ffffff 0 25%, transparent 26%),
+      conic-gradient(#ef4444 0 45deg, #ffffff 45deg 65deg, #ef4444 65deg 110deg, #ffffff 110deg 130deg, #ef4444 130deg 175deg, #ffffff 175deg 195deg, #ef4444 195deg 240deg, #ffffff 240deg 260deg, #ef4444 260deg 305deg, #ffffff 305deg 325deg, #ef4444 325deg 360deg);
+    border: 2px solid #fff7ed;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35), 0 6px 14px rgba(0,0,0,0.35);
+  }
+
+  .pr-poker-chip-icon::after {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    border: 2px solid #ef4444;
+    background: #fff7ed;
+  }
+
+  .pr-wallet-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.05;
+  }
+
+  .pr-wallet-label {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.62);
+    font-weight: 800;
+  }
+
+  .pr-wallet-amount {
+    font-size: 14px;
+    color: #facc15;
+  }
+
+  .pr-topbar-empty {
+    flex: 1;
+    min-width: 20px;
+  }
+
+  .pr-topbar-brand {
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+    font-weight: 900;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  .pr-account-popover {
+    position: fixed;
+    top: calc(72px + env(safe-area-inset-top));
+    left: 12px;
+    z-index: 100000;
+    width: min(330px, calc(100vw - 24px));
+    border: 1px solid rgba(250, 204, 21, 0.32);
+    border-radius: 20px;
+    background:
+      linear-gradient(145deg, rgba(0,0,0,0.88), rgba(3,22,13,0.86)),
+      radial-gradient(circle at top left, rgba(250,204,21,0.16), transparent 45%);
+    box-shadow: 0 20px 52px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.08);
+    backdrop-filter: blur(18px);
+    padding: 14px;
+    display: none;
+  }
+
+  .pr-account-popover.pr-open {
+    display: block;
+  }
+
+  .pr-account-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    color: #facc15;
+    font-weight: 900;
+  }
+
+  .pr-account-close {
+    border: 0;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  .pr-auth-input {
+    width: 100%;
+    border: 1px solid rgba(250,204,21,0.28);
+    background: rgba(0,0,0,0.46);
+    color: #fff;
+    border-radius: 13px;
+    padding: 12px;
+    margin-bottom: 8px;
+    outline: none;
+    font-size: 14px;
+  }
+
+  .pr-auth-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .pr-auth-btn {
+    border: 0;
+    border-radius: 13px;
+    padding: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    color: #07120b;
+    background: linear-gradient(135deg, #facc15, #d97706);
+  }
+
+  .pr-auth-btn.pr-green {
+    color: #fff;
+    background: linear-gradient(135deg, #22c55e, #166534);
+  }
+
+  .pr-auth-btn.pr-red {
+    color: #fff;
+    background: linear-gradient(135deg, #ef4444, #991b1b);
+  }
+
+  .pr-account-info {
+    display: none;
+    gap: 10px;
+  }
+
+  .pr-account-card {
+    border: 1px solid rgba(250,204,21,0.16);
+    background: rgba(255,255,255,0.06);
+    border-radius: 15px;
+    padding: 10px;
+    margin-bottom: 10px;
+    color: rgba(255,255,255,0.78);
+    font-size: 13px;
+  }
+
+  .pr-account-card strong {
+    color: #facc15;
+  }
+
+  .pr-popover-message {
+    margin-top: 10px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.70);
+    min-height: 16px;
+  }
+
+  @media (max-width: 420px) {
+    .pr-top-wallet-bar {
+      left: 10px;
+      right: 10px;
+      height: 50px;
+      border-radius: 16px;
+      padding: 5px 8px;
+    }
+
+    .pr-user-chip-button {
+      width: 40px;
+      height: 40px;
+    }
+
+    .pr-wallet-pill {
+      height: 40px;
+      min-width: 105px;
+      padding-right: 10px;
+    }
+
+    .pr-topbar-brand {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+(function() {
+  function qs(selector) {
+    return document.querySelector(selector);
+  }
+
+  function formatNumber(value) {
+    const number = Number(value || 0);
+    return number.toLocaleString("en-US");
+  }
+
+  function userIconSvg() {
+    return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 12.2c2.35 0 4.25-1.9 4.25-4.25S14.35 3.7 12 3.7 7.75 5.6 7.75 7.95s1.9 4.25 4.25 4.25Z" fill="#06120b"/><path d="M4.7 20.3c.65-3.35 3.5-5.55 7.3-5.55s6.65 2.2 7.3 5.55c.08.43-.25.8-.69.8H5.39c-.44 0-.77-.37-.69-.8Z" fill="#06120b"/></svg>';
+  }
+
+  async function api(path, body) {
+    const response = await fetch(path, {
+      method: body ? "POST" : "GET",
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : undefined
+    });
+
+    const data = await response.json().catch(function() { return {}; });
+
+    if (!response.ok) {
+      throw new Error(data.error || "Request failed.");
+    }
+
+    return data;
+  }
+
+  async function loadMe() {
+    try {
+      const data = await api("/api/me");
+      window.__prCurrentUser = data.user || null;
+      renderAccountState();
+    } catch (error) {
+      window.__prCurrentUser = null;
+      renderAccountState();
+    }
+  }
+
+  function ensureTopBar() {
+    if (qs("#prTopWalletBar")) return;
+
+    const bar = document.createElement("div");
+    bar.id = "prTopWalletBar";
+    bar.className = "pr-top-wallet-bar";
+    bar.innerHTML =
+      '<button class="pr-user-chip-button" id="prUserButton" type="button" aria-label="Account">' + userIconSvg() + '</button>' +
+      '<div class="pr-wallet-pill" id="prWalletPill">' +
+        '<span class="pr-poker-chip-icon" aria-hidden="true"></span>' +
+        '<span class="pr-wallet-text">' +
+          '<span class="pr-wallet-label">CHIPS</span>' +
+          '<span class="pr-wallet-amount" id="prWalletAmount">0</span>' +
+        '</span>' +
+      '</div>' +
+      '<div class="pr-topbar-empty"></div>' +
+      '<div class="pr-topbar-brand">POKER ROYALE</div>';
+
+    document.body.appendChild(bar);
+
+    const popover = document.createElement("div");
+    popover.id = "prAccountPopover";
+    popover.className = "pr-account-popover";
+    popover.innerHTML =
+      '<div class="pr-account-title"><span>Account</span><button class="pr-account-close" id="prAccountClose" type="button">Ã</button></div>' +
+      '<div id="prAuthBox">' +
+        '<input class="pr-auth-input" id="prUsername" placeholder="Username" autocomplete="username" />' +
+        '<input class="pr-auth-input" id="prPassword" placeholder="Password" type="password" autocomplete="current-password" />' +
+        '<div class="pr-auth-row">' +
+          '<button class="pr-auth-btn pr-green" id="prLoginBtn" type="button">Login</button>' +
+          '<button class="pr-auth-btn" id="prRegisterBtn" type="button">Register</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="prAccountInfo" class="pr-account-info">' +
+        '<div class="pr-account-card">User: <strong id="prAccountName">-</strong><br />Chips: <strong id="prAccountChips">0</strong></div>' +
+        '<div class="pr-auth-row">' +
+          '<button class="pr-auth-btn" id="prDailyBtn" type="button">Daily Bonus</button>' +
+          '<button class="pr-auth-btn pr-red" id="prLogoutBtn" type="button">Logout</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pr-popover-message" id="prPopoverMessage"></div>';
+
+    document.body.appendChild(popover);
+
+    qs("#prUserButton").addEventListener("click", function() {
+      qs("#prAccountPopover").classList.toggle("pr-open");
+    });
+
+    qs("#prAccountClose").addEventListener("click", function() {
+      qs("#prAccountPopover").classList.remove("pr-open");
+    });
+
+    qs("#prLoginBtn").addEventListener("click", async function() {
+      await authAction("/api/login");
+    });
+
+    qs("#prRegisterBtn").addEventListener("click", async function() {
+      await authAction("/api/register");
+    });
+
+    qs("#prLogoutBtn").addEventListener("click", async function() {
+      try {
+        await api("/api/logout", {});
+        setMessage("Logged out.");
+        await loadMe();
+      } catch (error) {
+        setMessage(error.message);
+      }
+    });
+
+    qs("#prDailyBtn").addEventListener("click", async function() {
+      try {
+        const data = await api("/api/daily-bonus", {});
+        setMessage(data.message || "Daily bonus claimed.");
+        await loadMe();
+      } catch (error) {
+        setMessage(error.message);
+      }
+    });
+  }
+
+  async function authAction(path) {
+    const username = qs("#prUsername").value;
+    const password = qs("#prPassword").value;
+
+    try {
+      const data = await api(path, { username, password });
+      window.__prCurrentUser = data.user || null;
+      setMessage("Success.");
+      renderAccountState();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  function setMessage(message) {
+    const el = qs("#prPopoverMessage");
+    if (el) el.textContent = message || "";
+  }
+
+  function renderAccountState() {
+    const user = window.__prCurrentUser;
+    const walletAmount = qs("#prWalletAmount");
+    const authBox = qs("#prAuthBox");
+    const accountInfo = qs("#prAccountInfo");
+    const accountName = qs("#prAccountName");
+    const accountChips = qs("#prAccountChips");
+
+    if (walletAmount) walletAmount.textContent = formatNumber(user ? user.chips : 0);
+
+    if (authBox && accountInfo) {
+      authBox.style.display = user ? "none" : "block";
+      accountInfo.style.display = user ? "block" : "none";
+    }
+
+    if (accountName) accountName.textContent = user ? user.username : "-";
+    if (accountChips) accountChips.textContent = formatNumber(user ? user.chips : 0);
+  }
+
+  function hideOldWidgetsAgain() {
+    const selectors = [
+      ".account-float", ".account-widget", ".account-mini", ".user-float", ".profile-floating",
+      ".wallet-panel", ".home-wallet", ".auth-panel-home", ".top-account-card",
+      "#accountWidget", "#accountFloat", "#homeWallet", "#walletPanel"
+    ];
+
+    selectors.forEach(function(selector) {
+      document.querySelectorAll(selector).forEach(function(el) {
+        if (!el.closest("#prTopWalletBar") && !el.closest("#prAccountPopover")) {
+          el.style.display = "none";
+        }
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    ensureTopBar();
+    hideOldWidgetsAgain();
+    loadMe();
+    setInterval(loadMe, 15000);
+    setInterval(hideOldWidgetsAgain, 2000);
+  });
+})();
+</script>
+
 </body>
 </html>`);
 });
