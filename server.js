@@ -1,3 +1,4 @@
+
 const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -55,7 +56,7 @@ function shell(content, active = "home") {
 <title>VELORA</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--bg:#080808;--panel:#111;--text:#f7f3ed;--muted:#aaa39a;--line:rgba(255,255,255,.10);--cream:#e8dac6;--danger:#a83232}
+:root{--bg:#1e1e1e;--panel:#2f2f2f;--text:#f7f3ed;--muted:#d0c9be;--line:rgba(255,255,255,.10);--cream:#e8dac6;--danger:#a83232}
 body{margin:0;min-height:100vh;font-family:Arial,Tahoma,sans-serif;color:var(--text);background:radial-gradient(circle at 50% -10%,rgba(197,164,106,.16),transparent 34%),linear-gradient(180deg,#111,#070707 48%,#030303 100%);padding:calc(12px + env(safe-area-inset-top)) 12px calc(92px + env(safe-area-inset-bottom))}
 a{text-decoration:none;color:inherit}.wrap{width:100%;max-width:1120px;margin:0 auto}
 .top{position:sticky;top:0;z-index:50;margin:0 0 12px;padding:8px;border:1px solid var(--line);border-radius:24px;background:rgba(8,8,8,.80);backdrop-filter:blur(16px);display:flex;align-items:center;gap:8px;box-shadow:0 18px 48px rgba(0,0,0,.38)}
