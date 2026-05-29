@@ -3,64 +3,136 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.send(`<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>AESTRA Preview V15 Premium Banner</title>
-<style>
-body{margin:0;font-family:Arial,sans-serif;background:#f7f1e9;color:#14110f;}
-.header{position:sticky;top:0;background:#fffaf4;padding:14px;display:flex;justify-content:center;align-items:center;font-size:24px;font-weight:900;box-shadow:0 2px 10px rgba(0,0,0,.12)}
-.banner{display:grid;grid-template-columns:1fr 1fr;max-width:1220px;margin:20px auto;border-radius:30px;overflow:hidden;box-shadow:0 22px 70px rgba(76,48,22,.12);background:#fffaf4;min-height:550px;position:relative;}
-.banner-slide{display:none;grid-template-columns:1fr 1fr;align-items:center;min-height:550px;position:relative;transition:opacity .5s ease-in-out}
-.banner-slide.active{display:grid}
-.banner-slide img{width:100%;height:550px;object-fit:cover;border-radius:0}
-.slide-text{padding:40px;display:flex;flex-direction:column;justify-content:center}
-.slide-text span{background:#101010;color:#fff;padding:8px 12px;border-radius:999px;font-weight:900;width:max-content;margin-bottom:12px}
-.slide-text h1{font-family:Georgia,serif;font-size:54px;margin:0}
-.slide-text h2{font-size:22px;margin:6px 0}
-.slide-text p{font-size:16px;line-height:1.8;color:#4f4740;max-width:480px}
-.hero-btn{background:#101010;color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:900;display:inline-block;margin-top:14px;transition:.25s}
-.hero-btn:hover{transform:translateY(-3px)}
-.banner-controls{position:absolute;bottom:18px;left:18px;display:flex;gap:8px}
-.control-dot{width:12px;height:12px;border-radius:999px;background:rgba(16,16,16,.28);border:0;transition:.25s}
-.control-dot.active{width:28px;background:#101010}
-.arrow{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:999px;border:1px solid rgba(20,17,15,.15);background:rgba(255,250,244,.86);font-size:22px;font-weight:900;text-align:center;line-height:42px;cursor:pointer}
-.arrow.prev{right:18px}.arrow.next{left:18px}
-</style>
-</head>
-<body>
-<div class="header">AESTRA STORE</div>
-<main>
-<section class="banner" id="banner">
-  <div class="banner-slide active">
-    <div class="slide-text"><span>NEW COLLECTION</span><h1>AESTRA</h1><h2>Ø§Ø³ØªØ§ÛÙ ØªÙØ Ø§ÙØ¶Ø§Û ØªÙØ³Øª</h2><p>Ú©Ø§ÙÚ©Ø´Ù Ø¬Ø¯ÛØ¯ Ø¢Ø³ØªØ±Ø§ Ø¨Ø§ ÙØ¨Ø§Ø³âÙØ§Û ÙÙÚ©Ø³ Ù ÙÛÙÛÙØ§Ù.</p><a class="hero-btn" href="/shop?cat=women">ÙØ´Ø§ÙØ¯Ù Ú©Ø§ÙÚ©Ø´Ù Ø²ÙØ§ÙÙ</a></div>
-    <img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1500&q=88" alt="Banner1"/>
-  </div>
-  <div class="banner-slide">
-    <div class="slide-text"><span>MEN STYLE</span><h1>MODERN</h1><h2>Ø³Ø§Ø¯Ú¯Û Ù ÙÙØ§Ø±</h2><p>Ø§Ø³ØªØ§ÛÙ ÙØ±Ø¯Ø§ÙÙ Ø¨Ø§ Ù¾ÛØ±Ø§ÙÙâÙØ§ Ù Ú©ØªâÙØ§Û ÙØ¯Ø±Ù.</p><a class="hero-btn" href="/shop?cat=men">ÙØ´Ø§ÙØ¯Ù Ú©Ø§ÙÚ©Ø´Ù ÙØ±Ø¯Ø§ÙÙ</a></div>
-    <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1500&q=88" alt="Banner2"/>
-  </div>
-  <div class="banner-slide">
-    <div class="slide-text"><span>ACCESSORIES</span><h1>DETAILS</h1><h2>Ø¬Ø²Ø¦ÛØ§Øª Ø§Ø³ØªØ§ÛÙ</h2><p>Ø§Ø² Ú©ÛÙ Ù Ø³Ø§Ø¹Øª ØªØ§ Ø§Ú©Ø³Ø³ÙØ±ÛâÙØ§Ø Ø¨Ø±Ø§Û Ú©Ø§ÙÙ Ú©Ø±Ø¯Ù Ø¸Ø§ÙØ± Ø´ÙØ§.</p><a class="hero-btn" href="/shop?cat=accessories">ÙØ´Ø§ÙØ¯Ù Ø§Ú©Ø³Ø³ÙØ±ÛâÙØ§</a></div>
-    <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1500&q=88" alt="Banner3"/>
-  </div>
-  <div class="arrow prev" onclick="moveBanner(-1)">âº</div>
-  <div class="arrow next" onclick="moveBanner(1)">â¹</div>
-  <div class="banner-controls"><div class="control-dot active" onclick="showBanner(0)"></div><div class="control-dot" onclick="showBanner(1)"></div><div class="control-dot" onclick="showBanner(2)"></div></div>
-</section>
-</main>
-<script>
-let bannerIndex=0;
-function showBanner(i){const slides=document.querySelectorAll(".banner-slide");const dots=document.querySelectorAll(".control-dot");bannerIndex=(i+slides.length)%slides.length;slides.forEach((s,n)=>s.classList.toggle("active",n===bannerIndex));dots.forEach((d,n)=>d.classList.toggle("active",n===bannerIndex));}
-function moveBanner(step){showBanner(bannerIndex+step);}
-setInterval(()=>showBanner(bannerIndex+1),5500);
-</script>
-</body>
-</html>`);
+app.use((req,res,next)=>{
+  res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
+  res.setHeader("Pragma","no-cache");
+  res.setHeader("Expires","0");
+  next();
 });
 
-app.listen(PORT,()=>console.log("AESTRA Preview V15 Premium Banner running on port "+PORT));
+const users = [];
+const otpCodes = new Map();
+const orders = [];
+
+const products = [
+  {id:1,fa:"کت زنانه لینن کرم",en:"Cream Linen Blazer",category:"women",price:2490000,oldPrice:2890000,badge:"جدید",image:"https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85",desc:"کت زنانه مینیمال با رنگ کرم، مناسب استایل رسمی و روزمره.",colors:["کرم","مشکی"],sizes:["S","M","L","XL"]},
+  {id:2,fa:"عینک آفتابی کلاسیک",en:"Classic Sunglasses",category:"accessories",price:1290000,oldPrice:0,badge:"محبوب",image:"https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=1200&q=85",desc:"عینک آفتابی با فرم کلاسیک و ظاهر لوکس.",colors:["مشکی"],sizes:["Free"]},
+  {id:3,fa:"پیراهن مردانه لینن",en:"Men Linen Shirt",category:"men",price:1490000,oldPrice:1790000,badge:"پرفروش",image:"https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=1200&q=85",desc:"پیراهن مردانه سبک و مناسب استایل مینیمال.",colors:["قهوه‌ای","سفید"],sizes:["M","L","XL"]},
+  {id:4,fa:"کیف دوشی چرمی",en:"Leather Shoulder Bag",category:"bags",price:2990000,oldPrice:0,badge:"جدید",image:"https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=1200&q=85",desc:"کیف دوشی چرمی با فرم مدرن.",colors:["مشکی"],sizes:["Free"]},
+  {id:5,fa:"کتانی سفید مینیمال",en:"Minimal White Sneakers",category:"shoes",price:2190000,oldPrice:0,badge:"تازه",image:"https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1200&q=85",desc:"کتانی سفید ساده و قابل ست.",colors:["سفید"],sizes:["40","41","42","43"]},
+  {id:6,fa:"ساعت طلایی آسترا",en:"AESTRA Gold Watch",category:"watches",price:3890000,oldPrice:4490000,badge:"خاص",image:"https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=85",desc:"ساعت طلایی با طراحی مینیمال.",colors:["طلایی"],sizes:["Free"]},
+  {id:7,fa:"پیراهن زنانه مشکی",en:"Black Evening Dress",category:"women",price:1990000,oldPrice:2490000,badge:"محدود",image:"https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=1200&q=85",desc:"پیراهن زنانه مشکی برای موقعیت‌های خاص.",colors:["مشکی"],sizes:["S","M","L"]},
+  {id:8,fa:"هودی مونوکروم",en:"Monochrome Hoodie",category:"men",price:1490000,oldPrice:0,badge:"Street",image:"https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1200&q=85",desc:"هودی ساده برای استایل روزمره.",colors:["مشکی","خاکستری"],sizes:["M","L","XL"]}
+];
+
+const categories = [
+  {id:"women",fa:"زنانه",image:"https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=800&q=85"},
+  {id:"men",fa:"مردانه",image:"https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=800&q=85"},
+  {id:"accessories",fa:"اکسسوری",image:"https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=800&q=85"},
+  {id:"watches",fa:"ساعت",image:"https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=85"},
+  {id:"bags",fa:"کیف",image:"https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=800&q=85"},
+  {id:"shoes",fa:"کفش",image:"https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=800&q=85"}
+];
+
+const subCategories = {
+  women:["مانتو","کت و بلیزر","شومیز","پیراهن","تاپ و تیشرت","شلوار","دامن","هودی و سویشرت","لباس مجلسی","لباس راحتی","ست زنانه"],
+  men:["پیراهن","تیشرت","پولوشرت","شلوار","جین","کت و بلیزر","هودی و سویشرت","کاپشن","لباس راحتی","ست مردانه"],
+  shoes:["کتانی","کفش رسمی","بوت","صندل","کفش روزمره","کفش زنانه","کفش مردانه"],
+  bags:["کیف دستی","کیف دوشی","کراس‌بادی","کوله‌پشتی","کیف پول","کیف مجلسی","کیف مسافرتی"],
+  accessories:["عینک","کمربند","کلاه","شال و روسری","دستبند","گردنبند","انگشتر","گوشواره","اکسسوری مو"],
+  watches:["ساعت زنانه","ساعت مردانه","ساعت اسپرت","ساعت کلاسیک","ساعت لوکس","بند ساعت"],
+  perfume:["عطر زنانه","عطر مردانه","بادی‌اسپلش","کرم و مراقبت پوست","مراقبت مو"],
+  discount:["فروش ویژه","کالکشن قبلی","زیر قیمت","پیشنهاد روز"]
+};
+
+const allCats = [{id:"all",fa:"همه"},{id:"women",fa:"زنانه"},{id:"men",fa:"مردانه"},{id:"accessories",fa:"اکسسوری"},{id:"watches",fa:"ساعت"},{id:"bags",fa:"کیف"},{id:"shoes",fa:"کفش"},{id:"perfume",fa:"عطر و مراقبت"},{id:"discount",fa:"تخفیف‌ها"}];
+
+function money(n){return Number(n||0).toLocaleString("fa-IR")+" تومان";}
+function validPhone(p){return /^09\d{9}$/.test(String(p||"").trim());}
+function validPass(p){return String(p||"").length>=8 && /[A-Za-z]/.test(p) && /\d/.test(p);}
+function otp(){return String(Math.floor(100000+Math.random()*900000));}
+
+function card(p){
+  return `<article class="product-card">
+    <button class="wish" onclick="this.classList.toggle('active')">♡</button>
+    <a class="product-img" href="/product/${p.id}" style="background-image:url('${p.image}')"><span>${p.badge}</span></a>
+    <div class="product-info">
+      <a class="product-title" href="/product/${p.id}">${p.fa}</a>
+      <p>${p.en}</p>
+      <div><b>${money(p.price)}</b>${p.oldPrice?`<em>${money(p.oldPrice)}</em>`:""}</div>
+      <button class="add-btn" onclick='addToCart(${p.id},${JSON.stringify(p.fa)},${p.price},${JSON.stringify(p.image)})'>افزودن به سبد</button>
+    </div>
+  </article>`;
+}
+
+function drawerProducts(){
+  const names={women:"زنانه",men:"مردانه",shoes:"کفش",bags:"کیف",accessories:"اکسسوری",watches:"ساعت",perfume:"عطر و مراقبت",discount:"تخفیف‌ها"};
+  return Object.keys(subCategories).map(cat=>`
+    <div class="accordion">
+      <button class="accordion-title" onclick="toggleAccordion(this)"><span>${names[cat]}</span><b>+</b></button>
+      <div class="accordion-content">${subCategories[cat].map(sc=>`<a href="/shop?cat=${cat}&sub=${encodeURIComponent(sc)}">${sc}</a>`).join("")}</div>
+    </div>`).join("");
+}
+
+function shell(content,active="home"){
+  return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>AESTRA</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:linear-gradient(180deg,#fbf7f1,#efe2d2);color:#14110f}a{text-decoration:none;color:inherit}.wrap{max-width:1220px;margin:auto;padding:0 14px}.header{position:sticky;top:0;z-index:50;background:rgba(255,250,244,.94);backdrop-filter:blur(16px);border-bottom:1px solid rgba(20,17,15,.12)}.header-inner{max-width:1220px;margin:auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:13px 14px}.brand-box{text-align:center}.brand-mark{display:inline-grid;place-items:center;width:52px;height:52px;border-radius:18px;background:linear-gradient(135deg,#14110f,#4a3a22 58%,#d8bd7b);color:#fffaf4;font-family:Georgia,serif;font-size:30px}.brand{display:block;font-family:Georgia,serif;font-size:34px;letter-spacing:6px}.tag{font-size:10px;color:#7e766d;letter-spacing:2px}.left{display:flex;justify-content:flex-start}.right{display:flex;justify-content:flex-end;gap:8px}.auth-btn,.hamburger,.cart-icon{border:1px solid rgba(20,17,15,.12);background:#101010;color:#fffaf4;border-radius:999px;padding:12px 15px;font-weight:900}.hamburger,.cart-icon{width:46px;height:46px;border-radius:16px;background:#fffaf4;color:#101010;display:grid;place-items:center;font-size:22px;padding:0}.cart-icon{position:relative;font-size:18px}.cart-count{position:absolute;top:-5px;left:-5px;background:#101010;color:#fff;border-radius:50%;font-size:10px;width:18px;height:18px;display:grid;place-items:center}
+.premium-banner{margin:20px auto 30px;max-width:1220px;border-radius:34px;overflow:hidden;background:#fffaf4;box-shadow:0 22px 70px rgba(76,48,22,.14);position:relative;min-height:540px}.banner-track{display:flex;transition:transform .45s ease}.banner-slide{min-width:100%;display:grid;grid-template-columns:1fr 1fr;align-items:center;min-height:540px}.banner-text{padding:48px}.banner-text small{display:inline-flex;background:#101010;color:#fff;border-radius:999px;padding:8px 13px;font-weight:900;margin-bottom:14px}.banner-text h1{font-family:Georgia,serif;font-size:clamp(56px,9vw,94px);letter-spacing:4px;margin:0}.banner-text h2{font-size:24px;margin:10px 0;color:#2c241d}.banner-text p{font-size:17px;line-height:2;color:#4f4740;max-width:520px}.banner-slide img{width:100%;height:540px;object-fit:cover;display:block}.hero-btn{display:inline-flex;background:#101010;color:#fff;border-radius:12px;padding:15px 24px;font-weight:900;margin-top:14px}.banner-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:4;border:1px solid rgba(20,17,15,.12);background:rgba(255,250,244,.86);width:42px;height:42px;border-radius:50%;font-size:22px;font-weight:900}.prev{right:18px}.next{left:18px}.banner-dots{position:absolute;left:22px;bottom:22px;display:flex;gap:8px}.banner-dot{width:10px;height:10px;border:0;border-radius:999px;background:rgba(16,16,16,.28)}.banner-dot.active{width:30px;background:#101010}
+.section-head{display:flex;justify-content:space-between;align-items:end;margin:34px 0 14px}.cat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}.cat-card,.product-card,.panel,.trust-item,.trust-card,.payment-box{background:#fffaf4;border:1px solid rgba(20,17,15,.12);box-shadow:0 18px 50px rgba(76,48,22,.10)}.cat-card{border-radius:20px;overflow:hidden;text-align:center}.cat-img{height:145px;background-size:cover;background-position:center}.cat-card strong{display:block;padding:12px 0 3px}.cat-card span{display:block;color:#7e766d;font-size:12px;padding-bottom:12px}.products{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.product-card{border-radius:20px;overflow:hidden;position:relative}.wish{position:absolute;z-index:2;top:10px;right:10px;border:0;background:rgba(255,255,255,.86);width:36px;height:36px;border-radius:50%;font-size:18px}.wish.active{background:#101010;color:#fff}.product-img{height:260px;background-size:cover;background-position:center;display:block;position:relative}.product-img span{position:absolute;top:10px;left:10px;background:#101010;color:#fff;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:900}.product-info{padding:13px}.product-title{font-weight:900}.product-info p{color:#7e766d;font-size:12px}.product-info em{text-decoration:line-through;color:#9b9187;font-size:12px;margin-right:6px}.add-btn{width:100%;margin-top:11px;border:0;background:#101010;color:#fff;border-radius:12px;padding:12px;font-weight:900}.brand-block{margin:38px 0;background:linear-gradient(135deg,#171412,#3c2d1c);color:#fff;border-radius:28px;padding:30px;display:grid;grid-template-columns:1.3fr .7fr;gap:20px}.brand-block h2{font-family:Georgia,serif;font-size:44px;letter-spacing:4px;margin:0}.brand-block p{line-height:2;color:#eadfcc}.panel,.payment-box{border-radius:24px;padding:20px;margin:18px 0}.shop-tools{display:grid;grid-template-columns:1fr auto;gap:12px}.input,.shop-tools input{width:100%;border:1px solid rgba(20,17,15,.12);border-radius:14px;background:#fff;padding:14px}.filters,.subcats{display:flex;gap:8px;overflow:auto;flex-wrap:wrap}.filters a,.subcats a{border:1px solid rgba(20,17,15,.12);border-radius:999px;padding:11px 14px;background:#fff;white-space:nowrap}.filters a.active,.subcats a.active{background:#101010;color:#fff}.product-page{display:grid;grid-template-columns:1.05fr .95fr;gap:18px}.big-img{min-height:560px;border-radius:24px;background-size:cover;background-position:center}.chips{display:flex;gap:8px;flex-wrap:wrap}.chip{border:1px solid rgba(20,17,15,.12);padding:10px 13px;border-radius:12px;background:#fff}.cart-row{display:grid;grid-template-columns:70px 1fr auto;gap:12px;align-items:center;border-bottom:1px solid rgba(20,17,15,.12);padding:12px 0}.cart-img{width:70px;height:80px;border-radius:12px;background-size:cover;background-position:center}.form{display:grid;gap:10px}.trust-footer{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:24px auto}.trust-item{border-radius:18px;padding:18px;display:flex;gap:12px}.trust-panel{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.trust-card{border-radius:18px;padding:18px}.gateway-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gateway{border:1px solid rgba(20,17,15,.12);border-radius:16px;background:#fff;padding:14px;text-align:center;font-weight:900}.gateway.active{background:#101010;color:#fff}.footer{margin-top:34px;background:#101010;color:#fff;padding:34px 14px}.footer-inner{max-width:1220px;margin:auto;display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:24px}.footer a,.footer p{color:#d6ccbf;line-height:2;font-size:13px;display:block}.trust-badges{display:flex;gap:10px}.trust-badge{width:82px;height:96px;border-radius:14px;background:#fffaf4;color:#14110f;display:grid;place-items:center;text-align:center;font-size:12px;font-weight:900}
+.drawer-backdrop,.auth-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:90}.drawer-backdrop.open,.auth-backdrop.open{display:block}.drawer{position:fixed;top:0;right:0;width:min(88vw,430px);height:100%;background:#fffaf4;z-index:100;padding:18px;transform:translateX(105%);transition:.3s;overflow:auto}.drawer.open{transform:translateX(0)}.drawer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.close{border:0;background:#101010;color:#fff;border-radius:12px;width:40px;height:40px}.drawer-section{border-top:1px solid rgba(20,17,15,.12);padding:15px 0}.drawer-section>a{display:flex;justify-content:space-between;padding:12px}.accordion{border:1px solid rgba(20,17,15,.12);border-radius:16px;background:#fff;margin:10px 0;overflow:hidden}.accordion-title{width:100%;border:0;background:#f3eadf;padding:14px;display:flex;justify-content:space-between;font-weight:900}.accordion-title b{transition:.25s}.accordion.open .accordion-title b{transform:rotate(45deg)}.accordion-content{display:none;grid-template-columns:1fr 1fr;gap:7px;padding:10px}.accordion.open .accordion-content{display:grid}.accordion-content a{font-size:12px;border:1px solid rgba(20,17,15,.12);border-radius:10px;padding:9px;text-align:center}.auth-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-45%) scale(.96);width:min(92vw,430px);background:#fffaf4;border-radius:24px;z-index:110;padding:20px;display:none;opacity:0;transition:.25s;box-shadow:0 30px 100px rgba(0,0,0,.25)}.auth-modal.open{display:block;opacity:1;transform:translate(-50%,-50%) scale(1)}.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}.auth-tabs button{border:1px solid rgba(20,17,15,.12);background:#fff;border-radius:12px;padding:12px;font-weight:900}.auth-tabs button.active{background:#101010;color:#fff}.error{color:#9f2a2a;font-size:12px;min-height:18px}.success{color:#16835a;font-size:12px;min-height:18px}.muted{color:#7e766d;line-height:1.9}
+@media(max-width:900px){.cat-grid{grid-template-columns:repeat(3,1fr)}.products{grid-template-columns:repeat(3,1fr)}.footer-inner{grid-template-columns:1fr 1fr}.trust-footer{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){.header-inner{grid-template-columns:auto 1fr auto}.left{order:3}.brand{font-size:24px}.brand-mark{width:42px;height:42px;font-size:24px}.tag,.cart-icon{display:none}.auth-btn{font-size:12px;padding:11px 12px}.premium-banner{border-radius:26px;min-height:0}.banner-slide{grid-template-columns:1fr;min-height:0}.banner-slide img{height:330px;order:-1}.banner-text{padding:24px}.banner-text h1{font-size:52px}.banner-text p{font-size:14px}.banner-arrow{display:none}.cat-grid,.products{grid-template-columns:repeat(2,1fr);gap:10px}.cat-img{height:130px}.product-img{height:210px}.brand-block,.product-page{grid-template-columns:1fr}.big-img{min-height:390px}.trust-footer,.trust-panel,.shop-tools,.footer-inner{grid-template-columns:1fr}.drawer{right:auto;left:0;transform:translateX(-105%)}.drawer.open{transform:translateX(0)}}
+</style></head><body>
+<header class="header"><div class="header-inner"><div class="left"><button class="auth-btn" onclick="openAuth()">ثبت نام / ورود</button></div><div class="brand-box"><a class="brand-mark" href="/">A</a><a class="brand" href="/">AESTRA</a><div class="tag">PREMIUM FASHION STORE</div></div><div class="right"><button class="hamburger" onclick="openDrawer()">☰</button><a class="cart-icon" href="/cart">🛍<span class="cart-count" id="cartCount">0</span></a></div></div></header>
+<main class="wrap">${content}</main>
+<section class="trust-footer wrap"><div class="trust-item">🚚<div><b>ارسال سریع</b><div class="muted">ارسال به سراسر کشور</div></div></div><div class="trust-item">↩️<div><b>ضمانت بازگشت</b><div class="muted">۷ روز ضمانت بازگشت کالا</div></div></div><div class="trust-item">🛡️<div><b>پرداخت امن</b><div class="muted">درگاه پرداخت معتبر</div></div></div><div class="trust-item">🎧<div><b>پشتیبانی آنلاین</b><div class="muted">پاسخگویی سفارش</div></div></div></section>
+<footer class="footer"><div class="footer-inner"><div><h3>AESTRA</h3><p>آسترا فروشگاه آنلاین پوشاک، ساعت، کیف، کفش و اکسسوری است. ما به فکر استایل شما هستیم.</p><p>آدرس: تهران، خیابان نمونه، پلاک ۱۲</p><p>شماره تماس: ۰۲۱-۰۰۰۰۰۰۰۰</p></div><div><h3>دسته‌بندی‌ها</h3><a href="/shop?cat=women">زنانه</a><a href="/shop?cat=men">مردانه</a><a href="/shop?cat=accessories">اکسسوری</a><a href="/shop?cat=watches">ساعت</a></div><div><h3>خدمات</h3><a href="/support">پشتیبانی</a><a href="/ticket">تیکت</a><a href="/discounts">تخفیف‌ها</a><a href="/lottery">قرعه‌کشی</a></div><div><h3>نمادهای اعتماد</h3><div class="trust-badges"><div class="trust-badge">جایگاه<br>اینماد</div><div class="trust-badge">جایگاه<br>ساماندهی</div></div></div></div></footer>
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div><aside class="drawer" id="drawer"><div class="drawer-head"><strong>AESTRA MENU</strong><button class="close" onclick="closeDrawer()">×</button></div><div class="drawer-section"><strong>محصولات</strong>${drawerProducts()}</div><div class="drawer-section"><strong>خدمات سایت</strong><a href="/support">پشتیبانی <span>›</span></a><a href="/ticket">تیکت <span>›</span></a><a href="/discounts">تخفیف‌ها <span>›</span></a><a href="/lottery">قرعه‌کشی <span>›</span></a><a href="/about">درباره ما <span>›</span></a><a href="/contact">تماس با ما <span>›</span></a></div></aside>
+<div class="auth-backdrop" id="authBackdrop" onclick="closeAuth()"></div><section class="auth-modal" id="authModal"><div class="drawer-head"><strong>حساب کاربری</strong><button class="close" onclick="closeAuth()">×</button></div><div class="auth-tabs"><button id="registerTab" class="active" onclick="setAuthMode('register')">ثبت نام</button><button id="loginTab" onclick="setAuthMode('login')">ورود</button></div><form class="form" onsubmit="submitAuth(event)"><input class="input" id="authPhone" placeholder="شماره موبایل مثل 09123456789" maxlength="11" required><input class="input" id="authPassword" type="password" placeholder="رمز: حداقل ۸ کاراکتر، حروف لاتین و عدد" required><div id="otpBox" style="display:none" class="form"><input class="input" id="authOtp" maxlength="6" placeholder="کد تایید ۶ رقمی"><button class="add-btn" type="button" onclick="verifyOtp()">تایید کد</button></div><div class="error" id="authError"></div><div class="success" id="authSuccess"></div><button class="add-btn" id="authSubmit" type="submit">ارسال کد تایید</button></form></section>
+<script>
+let bannerIndex=0,authMode="register";
+function showBanner(i){const track=document.getElementById("bannerTrack"),dots=document.querySelectorAll(".banner-dot");if(!track)return;const count=track.children.length;bannerIndex=(i+count)%count;track.style.transform="translateX("+bannerIndex*100+"%)";dots.forEach((d,n)=>d.classList.toggle("active",n===bannerIndex))}
+function moveBanner(s){showBanner(bannerIndex+s)}setInterval(()=>showBanner(bannerIndex+1),5500);
+function toggleAccordion(btn){btn.closest(".accordion").classList.toggle("open")}
+function getCart(){try{return JSON.parse(localStorage.getItem("aestra_cart")||"[]")}catch(e){return []}}function setCart(c){localStorage.setItem("aestra_cart",JSON.stringify(c));updateCartCount()}function updateCartCount(){const n=getCart().reduce((s,i)=>s+i.qty,0),el=document.getElementById("cartCount");if(el)el.textContent=n}function addToCart(id,name,price,image){const c=getCart(),it=c.find(x=>x.id===id);if(it)it.qty++;else c.push({id,name,price,image,qty:1});setCart(c);alert("به سبد خرید اضافه شد")}function changeQty(id,d){const c=getCart(),it=c.find(x=>x.id===id);if(!it)return;it.qty+=d;if(it.qty<=0)c.splice(c.indexOf(it),1);setCart(c);location.reload()}function clearCart(){setCart([]);location.reload()}function openDrawer(){drawer.classList.add("open");drawerBackdrop.classList.add("open")}function closeDrawer(){drawer.classList.remove("open");drawerBackdrop.classList.remove("open")}function openAuth(){authModal.classList.add("open");authBackdrop.classList.add("open")}function closeAuth(){authModal.classList.remove("open");authBackdrop.classList.remove("open")}function setAuthMode(m){authMode=m;registerTab.classList.toggle("active",m==="register");loginTab.classList.toggle("active",m==="login");authSubmit.textContent=m==="register"?"ارسال کد تایید":"ورود";otpBox.style.display="none";authError.textContent="";authSuccess.textContent=""}function validPhone(p){return /^09\\d{9}$/.test(String(p||"").trim())}function validPass(p){return String(p||"").length>=8&&/[A-Za-z]/.test(p)&&/\\d/.test(p)}
+async function submitAuth(e){e.preventDefault();const phone=authPhone.value.trim(),password=authPassword.value;if(!validPhone(phone)){authError.textContent="شماره موبایل معتبر ایران وارد کنید.";return}if(!validPass(password)){authError.textContent="رمز باید حداقل ۸ کاراکتر و شامل عدد و حروف لاتین باشد.";return}if(authMode==="register"){const r=await fetch("/api/auth/send-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone,password})}),j=await r.json();if(!r.ok){authError.textContent=j.error;return}otpBox.style.display="grid";authSuccess.textContent="کد نمایشی: "+j.demoCode;return}const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone,password})}),j=await r.json();if(!r.ok){authError.textContent=j.error;return}authSuccess.textContent="ورود موفق بود";localStorage.setItem("aestra_user",JSON.stringify(j.user));setTimeout(closeAuth,900)}
+async function verifyOtp(){const r=await fetch("/api/auth/verify-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone:authPhone.value.trim(),password:authPassword.value,code:authOtp.value.trim()})}),j=await r.json();if(!r.ok){authError.textContent=j.error;return}authSuccess.textContent="ثبت نام کامل شد";localStorage.setItem("aestra_user",JSON.stringify(j.user));setTimeout(closeAuth,900)}
+updateCartCount();
+</script></body></html>`;
+}
+
+function premiumBanner(){
+  return `<section class="premium-banner"><div class="banner-track" id="bannerTrack">
+    <article class="banner-slide"><div class="banner-text"><small>NEW COLLECTION</small><h1>AESTRA</h1><h2>استایل تو، امضای توست</h2><p>کالکشن جدید آسترا با لباس‌های لوکس، ساده و مینیمال.</p><a class="hero-btn" href="/shop?cat=women">مشاهده کالکشن زنانه</a></div><img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1500&q=88" alt=""></article>
+    <article class="banner-slide"><div class="banner-text"><small>MEN STYLE</small><h1>MODERN</h1><h2>سادگی و وقار</h2><p>استایل مردانه آسترا برای انتخاب‌های مدرن و تمیز.</p><a class="hero-btn" href="/shop?cat=men">مشاهده کالکشن مردانه</a></div><img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1500&q=88" alt=""></article>
+    <article class="banner-slide"><div class="banner-text"><small>ACCESSORIES</small><h1>DETAILS</h1><h2>جزئیات استایل</h2><p>از ساعت تا کیف و اکسسوری؛ برای کامل کردن ظاهر شما.</p><a class="hero-btn" href="/shop?cat=accessories">مشاهده اکسسوری‌ها</a></div><img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1500&q=88" alt=""></article>
+  </div><button class="banner-arrow prev" onclick="moveBanner(-1)">›</button><button class="banner-arrow next" onclick="moveBanner(1)">‹</button><div class="banner-dots"><button class="banner-dot active" onclick="showBanner(0)"></button><button class="banner-dot" onclick="showBanner(1)"></button><button class="banner-dot" onclick="showBanner(2)"></button></div></section>`;
+}
+
+app.post("/api/auth/send-otp",(req,res)=>{const phone=String(req.body.phone||"").trim(),password=String(req.body.password||"");if(!validPhone(phone))return res.status(400).json({error:"شماره موبایل معتبر ایران وارد کنید."});if(!validPass(password))return res.status(400).json({error:"رمز عبور معتبر نیست."});if(users.find(u=>u.phone===phone))return res.status(409).json({error:"این شماره قبلاً ثبت شده است."});const code=otp();otpCodes.set(phone,{code,password,expiresAt:Date.now()+120000});res.json({ok:true,demoCode:code})});
+app.post("/api/auth/verify-otp",(req,res)=>{const phone=String(req.body.phone||"").trim(),password=String(req.body.password||""),code=String(req.body.code||"").trim();const rec=otpCodes.get(phone);if(!rec)return res.status(400).json({error:"ابتدا کد تایید دریافت کنید."});if(Date.now()>rec.expiresAt)return res.status(400).json({error:"کد تایید منقضی شد."});if(rec.code!==code)return res.status(400).json({error:"کد تایید اشتباه است."});if(rec.password!==password)return res.status(400).json({error:"رمز با درخواست اولیه یکی نیست."});const user={id:Date.now(),phone,verified:true};users.push({...user,password});otpCodes.delete(phone);res.json({ok:true,user})});
+app.post("/api/auth/login",(req,res)=>{const phone=String(req.body.phone||"").trim(),password=String(req.body.password||"");const user=users.find(u=>u.phone===phone&&u.password===password);if(!user)return res.status(401).json({error:"شماره یا رمز اشتباه است."});res.json({ok:true,user:{id:user.id,phone:user.phone,verified:true}})});
+
+app.get("/",(req,res)=>{const catCards=categories.map(c=>`<a class="cat-card" href="/shop?cat=${c.id}"><div class="cat-img" style="background-image:url('${c.image}')"></div><strong>${c.fa}</strong><span>مشاهده</span></a>`).join("");res.send(shell(`${premiumBanner()}<div class="section-head"><h2>دسته‌بندی‌های محبوب</h2><a href="/shop">مشاهده همه</a></div><section class="cat-grid">${catCards}</section><div class="section-head"><h2>محصولات جدید</h2><a href="/shop">مشاهده همه</a></div><section class="products">${products.slice(0,4).map(card).join("")}</section><div class="brand-block"><div><h2>AESTRA</h2><p>ما به فکر استایل شما هستیم. آسترا انتخابی شیک و قابل اعتماد برای ساختن ظاهر شخصی شماست.</p></div><div><p>ظاهر مدرن، انتخاب ساده، خرید مطمئن.</p><a class="hero-btn" href="/about" style="background:#fffaf4;color:#101010">درباره برند</a></div></div><div class="section-head"><h2>محصولات پرطرفدار</h2><a href="/shop">مشاهده همه</a></div><section class="products">${products.slice(4,8).map(card).join("")}</section>`,"home"))});
+
+app.get("/shop",(req,res)=>{const cat=String(req.query.cat||"all"),sub=String(req.query.sub||""),q=String(req.query.q||"").trim();let f=cat==="all"?products:products.filter(p=>p.category===cat);if(q)f=f.filter(p=>(p.fa+" "+p.en).toLowerCase().includes(q.toLowerCase()));const links=allCats.map(c=>`<a class="${cat===c.id?"active":""}" href="/shop?cat=${c.id}">${c.fa}</a>`).join("");const subs=subCategories[cat]?`<div class="subcats">${subCategories[cat].map(s=>`<a class="${sub===s?"active":""}" href="/shop?cat=${cat}&sub=${encodeURIComponent(s)}">${s}</a>`).join("")}</div>`:"";res.send(shell(`<section class="panel"><h1>فروشگاه AESTRA</h1><div class="shop-tools"><input placeholder="جستجوی محصول..." value="${q.replace(/"/g,"&quot;")}" onkeydown="if(event.key==='Enter') location.href='/shop?q='+encodeURIComponent(this.value)"><div class="filters">${links}</div></div>${subs}</section><section class="products">${f.length?f.map(card).join(""):"<p>محصولی پیدا نشد.</p>"}</section>`,"shop"))});
+
+app.get("/product/:id",(req,res)=>{const p=products.find(x=>x.id===Number(req.params.id));if(!p)return res.status(404).send(shell(`<section class="panel"><h1>محصول پیدا نشد</h1></section>`));res.send(shell(`<section class="product-page"><div class="big-img" style="background-image:url('${p.image}')"></div><div class="panel"><h1>${p.fa}</h1><div style="color:#b99558">★★★★★ <span class="muted">۴.۸ از ۵</span></div><p class="muted">${p.desc}</p><h2>${money(p.price)}</h2><b>سایز</b><div class="chips">${p.sizes.map(s=>`<span class="chip">${s}</span>`).join("")}</div><br><b>رنگ</b><div class="chips">${p.colors.map(c=>`<span class="chip">${c}</span>`).join("")}</div><button class="add-btn" onclick='addToCart(${p.id},${JSON.stringify(p.fa)},${p.price},${JSON.stringify(p.image)})'>افزودن به سبد خرید</button></div></section>`,"shop"))});
+
+app.get("/cart",(req,res)=>res.send(shell(`<section class="product-page"><div class="panel"><h1>سبد خرید</h1><div id="cartRows"></div></div><div class="panel"><h2>اطلاعات سفارش</h2><form class="form" onsubmit="submitOrder(event)"><input class="input" id="name" placeholder="نام و نام خانوادگی" required><input class="input" id="phone" placeholder="شماره تماس" required><input class="input" id="address" placeholder="آدرس ارسال" required><button class="add-btn" type="submit">ثبت سفارش و ادامه پرداخت</button><button class="add-btn" style="background:#9f2a2a" type="button" onclick="clearCart()">خالی کردن سبد</button></form></div></section><script>function fmt(n){return Number(n||0).toLocaleString("fa-IR")+" تومان"}function renderCart(){const c=getCart(),box=document.getElementById("cartRows");if(!c.length){box.innerHTML='<p class="muted">سبد خرید خالی است.</p>';return}let total=0;box.innerHTML=c.map(it=>{total+=it.price*it.qty;return '<div class="cart-row"><div class="cart-img" style="background-image:url('+it.image+')"></div><div><strong>'+it.name+'</strong><br><span class="muted">'+fmt(it.price)+'</span></div><div><button onclick="changeQty('+it.id+',-1)">-</button> '+it.qty+' <button onclick="changeQty('+it.id+',1)">+</button></div></div>'}).join('')+'<div class="cart-row"><strong>جمع کل</strong><div></div><strong>'+fmt(total)+'</strong></div>'}async function submitOrder(e){e.preventDefault();const cart=getCart();if(!cart.length)return alert("سبد خرید خالی است");const order={name:name.value,phone:phone.value,address:address.value,cart};const r=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(order)}),j=await r.json();if(j.ok){localStorage.setItem("aestra_last_order",j.orderId);location.href="/checkout?order="+j.orderId}}renderCart();</script>`,"cart")));
+
+app.post("/api/orders",(req,res)=>{const order={id:Date.now(),name:String(req.body.name||"").slice(0,80),phone:String(req.body.phone||"").slice(0,40),address:String(req.body.address||"").slice(0,220),cart:Array.isArray(req.body.cart)?req.body.cart:[],createdAt:new Date().toISOString()};orders.unshift(order);res.json({ok:true,orderId:order.id})});
+app.get("/checkout",(req,res)=>res.send(shell(`<section class="payment-box"><h1>پرداخت امن AESTRA</h1><p class="muted">پرداخت در نسخه فعلی نمایشی است.</p><div class="trust-panel"><div class="trust-card"><b>تایید پیامکی</b><p class="muted">ثبت‌نام با شماره ایران و کد تایید.</p></div><div class="trust-card"><b>درگاه معتبر</b><p class="muted">آماده اتصال به زرین‌پال یا درگاه بانکی.</p></div><div class="trust-card"><b>نماد اعتماد</b><p class="muted">جایگاه اینماد آماده است.</p></div></div><div class="gateway-row"><div class="gateway active">زرین‌پال / نمایشی</div><div class="gateway">درگاه بانکی / نمایشی</div></div><button class="add-btn" onclick="alert('پرداخت نمایشی موفق بود.');localStorage.removeItem('aestra_cart');location.href='/'">پرداخت نمایشی</button></section>`,"cart")));
+
+function page(t,txt){return shell(`<section class="panel"><h1>${t}</h1><p class="muted">${txt}</p></section>`)}
+app.get("/about",(req,res)=>res.send(page("درباره AESTRA","AESTRA فروشگاه آنلاین مدرن برای پوشاک، ساعت، کیف، کفش و اکسسوری است.")));
+app.get("/contact",(req,res)=>res.send(page("تماس با ما","آدرس: تهران، خیابان نمونه، پلاک ۱۲ - شماره تماس: ۰۲۱-۰۰۰۰۰۰۰۰")));
+app.get("/account",(req,res)=>res.send(page("حساب کاربری","برای ثبت نام یا ورود، از دکمه بالای سایت استفاده کنید.")));
+app.get("/support",(req,res)=>res.send(page("پشتیبانی","پشتیبانی سفارش‌ها و راهنمای خرید.")));
+app.get("/ticket",(req,res)=>res.send(page("تیکت","سیستم تیکت در نسخه نهایی فعال می‌شود.")));
+app.get("/discounts",(req,res)=>res.send(page("تخفیف‌ها","پیشنهادهای ویژه AESTRA.")));
+app.get("/lottery",(req,res)=>res.send(page("قرعه‌کشی","کمپین‌ها و قرعه‌کشی‌های مناسبتی.")));
+app.get("/version",(req,res)=>res.json({app:"AESTRA",version:"preview-v16-stable-full",ok:true}));
+
+app.listen(PORT,()=>console.log("AESTRA Preview v16 stable full running on port "+PORT));
