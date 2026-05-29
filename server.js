@@ -110,7 +110,7 @@ a{text-decoration:none;color:inherit}.wrap{width:100%;max-width:1220px;margin:0 
 .cart-row{display:grid;grid-template-columns:70px 1fr auto;gap:12px;align-items:center;border-bottom:1px solid var(--line);padding:12px 0}.cart-img{width:70px;height:80px;border-radius:12px;background-size:cover;background-position:center}.form{display:grid;gap:10px}
 .footer{margin-top:34px;background:#101010;color:#fffaf4;padding:34px 14px}.footer-inner{max-width:1220px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:24px}.footer h3{font-family:Georgia,serif;letter-spacing:2px}.footer a,.footer p{display:block;color:#d6ccbf;line-height:2;font-size:13px}.trust-badges{display:flex;gap:10px;flex-wrap:wrap}.trust-badge{width:82px;height:96px;border-radius:14px;background:#fffaf4;color:#14110f;display:grid;place-items:center;text-align:center;font-size:12px;font-weight:900}
 .drawer-backdrop,.auth-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:90;animation:fadeIn .2s ease}.drawer-backdrop.open,.auth-backdrop.open{display:block}
-.drawer{position:fixed;top:0;right:0;width:min(86vw,390px);height:100%;background:#fffaf4;box-shadow:-20px 0 70px rgba(0,0,0,.22);z-index:100;padding:18px;transform:translateX(105%);transition:.3s;overflow:auto}.drawer.open{transform:translateX(0)}.drawer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.close{border:0;background:#101010;color:#fff;border-radius:12px;width:40px;height:40px}.drawer-section{border-top:1px solid var(--line);padding:15px 0}.drawer-section a{display:flex;justify-content:space-between;padding:12px;border-radius:12px}
+.drawer{position:fixed;top:0;right:0;width:min(86vw,390px);height:100%;background:#fffaf4;box-shadow:-20px 0 70px rgba(0,0,0,.22);z-index:100;padding:18px;transform:translateX(105%);transition:.3s;overflow:auto}.drawer.open{transform:translateX(0)}.drawer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.close{border:0;background:#101010;color:#fff;border-radius:12px;width:40px;height:40px}.drawer-section{border-top:1px solid var(--line);padding:15px 0}.drawer-section a{display:flex;justify-content:space-between;padding:12px;border-radius:12px}.drawer-cat{margin-top:8px}.drawer-cat-title{font-weight:900;padding:12px;border-radius:12px;background:#f3eadf;margin:8px 0 6px}.drawer-sub{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 8px 8px}.drawer-sub a{font-size:12px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px!important;justify-content:center!important;text-align:center}.drawer-sub a:hover{background:#101010;color:#fff}
 .auth-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-45%) scale(.96);width:min(92vw,430px);background:#fffaf4;border:1px solid var(--line);border-radius:24px;box-shadow:0 30px 100px rgba(0,0,0,.25);z-index:110;padding:20px;display:none;opacity:0;transition:.25s}.auth-modal.open{display:block;opacity:1;transform:translate(-50%,-50%) scale(1)}.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}.auth-tabs button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px;font-weight:900}.auth-tabs button.active{background:#101010;color:#fff}.error{color:var(--danger);font-size:12px;min-height:18px}.success{color:var(--green);font-size:12px;min-height:18px}.otp-box{gap:10px}.reveal{animation:floatIn .7s ease both}
 @media(max-width:900px){.trust-panel{grid-template-columns:1fr}.cat-grid{grid-template-columns:repeat(3,1fr)}.products{grid-template-columns:repeat(3,1fr)}.footer-inner{grid-template-columns:1fr 1fr}.trust-footer{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:760px){.header-inner{grid-template-columns:auto 1fr auto;padding:10px}.left-actions{order:3}.center-brand{order:2}.right-actions{order:1}.brand{font-size:24px}.brand-mark{width:42px;height:42px;font-size:24px}.brand-tag,.icon{display:none}.auth-btn{font-size:12px;padding:11px 12px}.home-slider{margin-top:12px;border-radius:26px;min-height:440px}.home-slide{min-height:440px;grid-template-columns:1fr!important;padding:24px;background-position:center}.home-slide:before{background:linear-gradient(90deg,rgba(255,250,244,.96),rgba(255,250,244,.74))}.home-slide h1{font-size:54px}.home-slide p{font-size:14px}.slider-arrow{display:none}.cat-grid,.products{grid-template-columns:repeat(2,1fr);gap:10px}.cat-img{height:130px}.product-image{height:210px}.brand-block,.product-page{grid-template-columns:1fr}.big-img{min-height:390px}.trust-footer{grid-template-columns:1fr}.shop-tools{grid-template-columns:1fr}.footer-inner{grid-template-columns:1fr}.drawer{right:auto;left:0;transform:translateX(-105%)}.drawer.open{transform:translateX(0)}}
@@ -122,7 +122,56 @@ a{text-decoration:none;color:inherit}.wrap{width:100%;max-width:1220px;margin:0 
 <section class="trust-footer wrap"><div class="trust-item">🚚<div><b>ارسال سریع</b><div class="muted">ارسال به سراسر کشور</div></div></div><div class="trust-item">↩️<div><b>ضمانت بازگشت</b><div class="muted">۷ روز ضمانت بازگشت کالا</div></div></div><div class="trust-item">🛡️<div><b>پرداخت امن</b><div class="muted">درگاه پرداخت معتبر</div></div></div><div class="trust-item">🎧<div><b>پشتیبانی آنلاین</b><div class="muted">پاسخگویی و پیگیری سفارش</div></div></div></section>
 <footer class="footer"><div class="footer-inner"><div><h3>AESTRA</h3><p>آسترا فروشگاه آنلاین پوشاک، ساعت، کیف، کفش و اکسسوری است. ما به فکر استایل شما هستیم و تلاش می‌کنیم انتخابی شیک، ساده و مطمئن فراهم کنیم.</p><p>آدرس: تهران، خیابان نمونه، پلاک ۱۲</p><p>شماره تماس: ۰۲۱-۰۰۰۰۰۰۰۰</p></div><div><h3>دسته‌بندی‌ها</h3><a href="/shop?cat=women">زنانه</a><a href="/shop?cat=men">مردانه</a><a href="/shop?cat=accessories">اکسسوری</a><a href="/shop?cat=watches">ساعت</a></div><div><h3>خدمات</h3><a href="/support">پشتیبانی</a><a href="/ticket">تیکت</a><a href="/discounts">تخفیف‌ها</a><a href="/lottery">قرعه‌کشی</a></div><div><h3>نمادهای اعتماد</h3><div class="trust-badges"><div class="trust-badge">جایگاه<br>اینماد</div><div class="trust-badge">جایگاه<br>ساماندهی</div></div></div></div></footer>
 <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
-<aside class="drawer" id="drawer"><div class="drawer-head"><strong>AESTRA MENU</strong><button class="close" onclick="closeDrawer()">×</button></div><div class="drawer-section"><strong>محصولات</strong><a href="/shop?cat=women">زنانه <span>›</span></a><a href="/shop?cat=men">مردانه <span>›</span></a><a href="/shop?cat=accessories">اکسسوری <span>›</span></a><a href="/shop?cat=watches">ساعت <span>›</span></a><a href="/shop?cat=bags">کیف <span>›</span></a><a href="/shop?cat=shoes">کفش <span>›</span></a></div><div class="drawer-section"><strong>خدمات سایت</strong><a href="/support">پشتیبانی <span>›</span></a><a href="/ticket">تیکت <span>›</span></a><a href="/discounts">تخفیف‌ها <span>›</span></a><a href="/lottery">قرعه‌کشی <span>›</span></a><a href="/about">درباره ما <span>›</span></a><a href="/contact">تماس با ما <span>›</span></a></div></aside>
+<aside class="drawer" id="drawer"><div class="drawer-head"><strong>AESTRA MENU</strong><button class="close" onclick="closeDrawer()">×</button></div><div class="drawer-section"><strong>محصولات</strong>
+  <div class="drawer-cat">
+    <div class="drawer-cat-title">زنانه</div>
+    <div class="drawer-sub">
+      <a href="/shop?cat=women&sub=مانتو">مانتو</a><a href="/shop?cat=women&sub=کت و بلیزر">کت و بلیزر</a><a href="/shop?cat=women&sub=شومیز">شومیز</a><a href="/shop?cat=women&sub=پیراهن">پیراهن</a><a href="/shop?cat=women&sub=تاپ و تیشرت">تاپ و تیشرت</a><a href="/shop?cat=women&sub=شلوار">شلوار</a><a href="/shop?cat=women&sub=دامن">دامن</a><a href="/shop?cat=women&sub=لباس مجلسی">لباس مجلسی</a>
+    </div>
+  </div>
+  <div class="drawer-cat">
+    <div class="drawer-cat-title">مردانه</div>
+    <div class="drawer-sub">
+      <a href="/shop?cat=men&sub=پیراهن">پیراهن</a><a href="/shop?cat=men&sub=تیشرت">تیشرت</a><a href="/shop?cat=men&sub=پولوشرت">پولوشرت</a><a href="/shop?cat=men&sub=شلوار">شلوار</a><a href="/shop?cat=men&sub=جین">جین</a><a href="/shop?cat=men&sub=کت و بلیزر">کت و بلیزر</a><a href="/shop?cat=men&sub=هودی و سویشرت">هودی و سویشرت</a><a href="/shop?cat=men&sub=کاپشن">کاپشن</a>
+    </div>
+  </div>
+  <div class="drawer-cat">
+    <div class="drawer-cat-title">کفش</div>
+    <div class="drawer-sub">
+      <a href="/shop?cat=shoes&sub=کتانی">کتانی</a><a href="/shop?cat=shoes&sub=کفش رسمی">کفش رسمی</a><a href="/shop?cat=shoes&sub=بوت">بوت</a><a href="/shop?cat=shoes&sub=صندل">صندل</a><a href="/shop?cat=shoes&sub=کفش روزمره">کفش روزمره</a><a href="/shop?cat=shoes&sub=کفش زنانه">کفش زنانه</a><a href="/shop?cat=shoes&sub=کفش مردانه">کفش مردانه</a>
+    </div>
+  </div>
+  <div class="drawer-cat">
+    <div class="drawer-cat-title">کیف</div>
+    <div class="drawer-sub">
+      <a href="/shop?cat=bags&sub=کیف دستی">کیف دستی</a><a href="/shop?cat=bags&sub=کیف دوشی">کیف دوشی</a><a href="/shop?cat=bags&sub=کراس‌بادی">کراس‌بادی</a><a href="/shop?cat=bags&sub=کوله‌پشتی">کوله‌پشتی</a><a href="/shop?cat=bags&sub=کیف پول">کیف پول</a><a href="/shop?cat=bags&sub=کیف مجلسی">کیف مجلسی</a>
+    </div>
+  </div>
+  <div class="drawer-cat">
+    <div class="drawer-cat-title">اکسسوری</div>
+    <div class="drawer-sub">
+      <a href="/shop?cat=accessories&sub=عینک">عینک</a><a href="/shop?cat=accessories&sub=کمربند">کمربند</a><a href="/shop?cat=accessories&sub=کلاه">کلاه</a><a href="/shop?cat=accessories&sub=شال و روسری">شال و روسری</a><a href="/shop?cat=accessories&sub=دستبند">دستبند</a><a href="/shop?cat=accessories&sub=گردنبند">گردنبند</a><a href="/shop?cat=accessories&sub=انگشتر">انگشتر</a><a href="/shop?cat=accessories&sub=گوشواره">گوشواره</a>
+    </div>
+  </div>
+  <div class="drawer-cat">
+    <div class="drawer-cat-title">ساعت</div>
+    <div class="drawer-sub">
+      <a href="/shop?cat=watches&sub=ساعت زنانه">ساعت زنانه</a><a href="/shop?cat=watches&sub=ساعت مردانه">ساعت مردانه</a><a href="/shop?cat=watches&sub=ساعت اسپرت">ساعت اسپرت</a><a href="/shop?cat=watches&sub=ساعت کلاسیک">ساعت کلاسیک</a><a href="/shop?cat=watches&sub=ساعت لوکس">ساعت لوکس</a><a href="/shop?cat=watches&sub=بند ساعت">بند ساعت</a>
+    </div>
+  </div>
+  <div class="drawer-cat">
+    <div class="drawer-cat-title">عطر و مراقبت</div>
+    <div class="drawer-sub">
+      <a href="/shop?cat=perfume&sub=عطر زنانه">عطر زنانه</a><a href="/shop?cat=perfume&sub=عطر مردانه">عطر مردانه</a><a href="/shop?cat=perfume&sub=بادی‌اسپلش">بادی‌اسپلش</a><a href="/shop?cat=perfume&sub=کرم و مراقبت پوست">مراقبت پوست</a><a href="/shop?cat=perfume&sub=مراقبت مو">مراقبت مو</a>
+    </div>
+  </div>
+  <div class="drawer-cat">
+    <div class="drawer-cat-title">تخفیف‌ها</div>
+    <div class="drawer-sub">
+      <a href="/shop?cat=discount&sub=فروش ویژه">فروش ویژه</a><a href="/shop?cat=discount&sub=کالکشن قبلی">کالکشن قبلی</a><a href="/shop?cat=discount&sub=زیر قیمت">زیر قیمت</a><a href="/shop?cat=discount&sub=پیشنهاد روز">پیشنهاد روز</a>
+    </div>
+  </div>
+</div><div class="drawer-section"><strong>خدمات سایت</strong><a href="/support">پشتیبانی <span>›</span></a><a href="/ticket">تیکت <span>›</span></a><a href="/discounts">تخفیف‌ها <span>›</span></a><a href="/lottery">قرعه‌کشی <span>›</span></a><a href="/about">درباره ما <span>›</span></a><a href="/contact">تماس با ما <span>›</span></a></div></aside>
 <div class="auth-backdrop" id="authBackdrop" onclick="closeAuth()"></div>
 <section class="auth-modal" id="authModal"><div class="drawer-head"><strong>حساب کاربری AESTRA</strong><button class="close" onclick="closeAuth()">×</button></div><div class="auth-tabs"><button id="registerTab" class="active" onclick="setAuthMode('register')">ثبت نام</button><button id="loginTab" onclick="setAuthMode('login')">ورود</button></div><form class="form" onsubmit="submitAuth(event)"><input class="input" id="authPhone" inputmode="numeric" placeholder="شماره موبایل ایران مثل 09123456789" maxlength="11" required><input class="input" id="authPassword" type="password" placeholder="رمز عبور: حداقل ۸ کاراکتر، حروف لاتین و عدد" required><div class="otp-box" id="otpBox" style="display:none"><input class="input" id="authOtp" inputmode="numeric" maxlength="6" placeholder="کد تایید پیامکی ۶ رقمی"><button class="add-btn" type="button" onclick="verifyOtp()">تایید کد پیامکی</button><div class="muted" style="font-size:12px">در نسخه نمایشی، کد پیامکی نمایش داده می‌شود.</div></div><div class="error" id="authError"></div><div class="success" id="authSuccess"></div><button class="add-btn" id="authSubmit" type="submit">ارسال کد تایید</button></form></section>
 <script>
@@ -189,6 +238,6 @@ app.get("/discounts",(req,res)=>res.send(page("تخفیف‌ها","کدهای ت
 app.get("/lottery",(req,res)=>res.send(page("قرعه‌کشی","کمپین‌ها و قرعه‌کشی‌های مناسبتی برند AESTRA در این صفحه قرار می‌گیرد.")));
 app.get("/admin",(req,res)=>res.send(shell(`<section class="panel"><h1>پنل ادمین نمایشی</h1><p class="muted">در نسخه نهایی، مدیریت محصولات و سفارش‌ها از WooCommerce انجام می‌شود.</p>${orders.length?orders.map(o=>`<div class="cart-row"><strong>${o.name}</strong><span>${o.phone}</span><b>${o.cart.length} محصول</b></div>`).join(""):"<p>هنوز سفارشی ثبت نشده است.</p>"}</section>`)));
 app.get("/api/products",(req,res)=>res.json({products,categories:allCats}));
-app.get("/version",(req,res)=>res.json({app:"AESTRA",version:"preview-v8-clean-banner",banner:"home-slider-guaranteed",ok:true}));
+app.get("/version",(req,res)=>res.json({app:"AESTRA",version:"preview-v10-hamburger-categories",banner:"home-slider-guaranteed",ok:true}));
 
-app.listen(PORT,()=>console.log("AESTRA Preview v8 running on port "+PORT));
+app.listen(PORT,()=>console.log("AESTRA Preview v10 running on port "+PORT));
